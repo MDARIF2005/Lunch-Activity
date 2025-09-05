@@ -200,8 +200,8 @@ def gen_frames():
                             inside_target = True
                             hand_inside_at = time.time()
                             
-                            # Start countdown if hand is in target area for 0.5 seconds
-                            if hand_inside_at - hand_detected_at > 0.5 and not countdown_active:
+                            # Start countdown if hand is in target area for 0.3 seconds
+                            if hand_inside_at - hand_detected_at > 0.3 and not countdown_active:
                                 countdown_active = True
                                 countdown_start = time.time()
                         else:
@@ -264,7 +264,7 @@ def gen_frames():
                 try:
                     # Resize hand sketch to fit nicely in the center
                     sketch_h, sketch_w = hand_sketch.shape[:2]
-                    scale = min(w_frame * 0.3 / sketch_w, h_frame * 0.3 / sketch_h)
+                    scale = min(w_frame * 0.4 / sketch_w, h_frame * 0.4 / sketch_h)
                     new_w = int(sketch_w * scale)
                     new_h = int(sketch_h * scale)
                     
@@ -278,29 +278,50 @@ def gen_frames():
                     # Convert to grayscale
                     gray = cv2.cvtColor(sketch_resized, cv2.COLOR_BGR2GRAY)
                     
-                    # Create edge detection for black lines
-                    edges = cv2.Canny(gray, 50, 150)
+                    # Create a more visible black line drawing
+                    # Invert the image to make black lines white, then make them black
+                    inverted = cv2.bitwise_not(gray)
                     
-                    # Convert edges to 3-channel BGR
+                    # Create mask where we want to draw black lines
+                    # Find edges and make them thick
+                    edges = cv2.Canny(gray, 30, 100)
+                    kernel = np.ones((3,3), np.uint8)
+                    edges = cv2.dilate(edges, kernel, iterations=1)
+                    
+                    # Convert to 3-channel and make edges black
                     edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
                     
-                    # Make white background transparent, keep black lines
-                    # Create mask where black lines (low values) are kept
-                    mask = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY_INV)[1]
-                    mask_3ch = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR) / 255.0
+                    # Create mask for black lines (where edges are white)
+                    mask = edges > 0
+                    mask_3ch = np.stack([mask, mask, mask], axis=2).astype(np.float32)
                     
                     # Apply the hand sketch as black lines overlay
                     for c in range(3):
                         frame[y_offset:y_offset+new_h, x_offset:x_offset+new_w, c] = \
-                            frame[y_offset:y_offset+new_h, x_offset:x_offset+new_w, c] * (1 - mask_3ch[:, :, 0]) + \
-                            (0, 0, 0)[c] * mask_3ch[:, :, 0]  # Black lines
+                            frame[y_offset:y_offset+new_h, x_offset:x_offset+new_w, c] * (1 - mask_3ch[:, :, c]) + \
+                            (0, 0, 0)[c] * mask_3ch[:, :, c]  # Black lines
                     
-                    # Draw a subtle border around the target area
-                    cv2.rectangle(frame, (x_offset-5, y_offset-5), 
-                                (x_offset+new_w+5, y_offset+new_h+5), (0, 255, 0), 2)
+                    # Draw a bright green border around the target area
+                    cv2.rectangle(frame, (x_offset-10, y_offset-10), 
+                                (x_offset+new_w+10, y_offset+new_h+10), (0, 255, 0), 3)
+                    
+                    # Add text label
+                    cv2.putText(frame, "TARGET AREA", (x_offset, y_offset-15), 
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     
                 except Exception as e:
                     print(f"Error overlaying hand sketch: {e}")
+            else:
+                # Draw a simple target area if no hand sketch
+                target_size = min(w_frame, h_frame) // 3
+                x_offset = (w_frame - target_size) // 2
+                y_offset = (h_frame - target_size) // 2
+                
+                # Draw target rectangle
+                cv2.rectangle(frame, (x_offset, y_offset), 
+                            (x_offset + target_size, y_offset + target_size), (0, 255, 0), 3)
+                cv2.putText(frame, "TARGET AREA", (x_offset, y_offset-15), 
+                          cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
             
             # Show instruction when no hand is detected
             if not detected:
