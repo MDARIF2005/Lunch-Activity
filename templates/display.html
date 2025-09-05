@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Launch Result - Activity Launch App{% endblock %}
+
+{% block extra_css %}
+{% if type == "image" %}
+<style>
+    html, body { height: 100%; margin: 0; background: #000; }
+    .navbar { display: none !important; }
+    .fullscreen-image-wrapper {
+        position: fixed;
+        inset: 0;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1;
+    }
+    .fullscreen-image-wrapper img {
+        max-width: 100vw;
+        max-height: 100vh;
+        width: auto;
+        height: auto;
+        object-fit: contain; /* show full image centered with possible side bars */
+        image-rendering: auto;
+        -ms-interpolation-mode: bicubic;
+    }
+</style>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if type == "image" %}
+    <!-- Full screen image display (no chrome) -->
+    <div class="fullscreen-image-wrapper">
+        <img src="{{ image_path }}" alt="Launched Image">
+    </div>
+{% else %}
+    <!-- Other content types with normal layout -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-success text-white text-center">
+                    <h2 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>Launch Successful!
+                    </h2>
+                </div>
+                <div class="card-body p-4 text-center">
+                    {% if type == "website" %}
+                        <div class="mb-4">
+                            <i class="fas fa-globe fa-5x text-primary mb-3"></i>
+                            <h4>Website Launched</h4>
+                            <p class="text-muted">{{ message }}</p>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                The website should have opened in your default browser.
+                            </div>
+                        </div>
+                    {% elif type == "file" %}
+                        <div class="mb-4">
+                            <i class="fas fa-file fa-5x text-primary mb-3"></i>
+                            <h4>File Ready</h4>
+                            <p class="text-muted">File path: {{ file_path }}</p>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                The file is ready for access at the specified location.
+                            </div>
+                        </div>
+                    {% elif type == "timer" %}
+                        <div class="mb-4">
+                            <i class="fas fa-clock fa-5x text-primary mb-3"></i>
+                            <h4>Launch Scheduled</h4>
+                            <p class="text-muted">{{ message }}</p>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                The launch has been scheduled. Keep this page open until the scheduled time.
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="mb-4">
+                            <i class="fas fa-rocket fa-5x text-primary mb-3"></i>
+                            <h4>Launch Executed</h4>
+                            <p class="text-muted">Your configured launch has been successfully executed!</p>
+                        </div>
+                    {% endif %}
+
+                    <div class="mt-4">
+                        <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus me-2"></i>Configure New Launch
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Launch Statistics -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Launch Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <div class="border-end">
+                                <h6 class="text-muted">Launch Type</h6>
+                                <h4 class="text-primary">
+                                    {% if type == "website" %}
+                                        <i class="fas fa-globe"></i> Website
+                                    {% elif type == "file" %}
+                                        <i class="fas fa-file"></i> File
+                                    {% else %}
+                                        <i class="fas fa-rocket"></i> Custom
+                                    {% endif %}
+                                </h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border-end">
+                                <h6 class="text-muted">Status</h6>
+                                <h4 class="text-success">
+                                    <i class="fas fa-check-circle"></i> Success
+                                </h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <h6 class="text-muted">Timestamp</h6>
+                            <h4 class="text-info">
+                                <i class="fas fa-clock"></i> <span id="launch-timestamp">--:--:--</span>
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    document.getElementById('launch-timestamp').textContent = now.toLocaleTimeString();
+});
+</script>
+{% endblock %}

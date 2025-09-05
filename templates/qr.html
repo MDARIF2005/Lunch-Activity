@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}QR Code Trigger - Activity Launch App{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white text-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-qrcode me-2"></i>QR Code Launch
+                </h2>
+            </div>
+            <div class="card-body p-4 text-center">
+                <div class="mb-4">
+                    <h4>Scan this QR code with your phone to trigger the launch</h4>
+                    <p class="text-muted">Use any QR code scanner app or your phone's camera</p>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="qr-code-container">
+                        <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code" class="img-fluid" 
+                             style="max-width: 300px; border: 2px solid #dee2e6; border-radius: 10px;">
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>QR opens:</strong> <a href="{{ qr_data }}" target="_blank">{{ qr_data }}</a>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas fa-mobile-alt me-2"></i>Mobile Instructions
+                                </h6>
+                                <ol class="text-start">
+                                    <li>Open your phone's camera app</li>
+                                    <li>Point it at the QR code</li>
+                                    <li>Tap the notification that appears</li>
+                                    <li>Launch will be triggered automatically</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas fa-qrcode me-2"></i>QR Scanner Apps
+                                </h6>
+                                <ul class="text-start list-unstyled">
+                                    <li class="mb-2">
+                                        <i class="fab fa-apple me-2"></i>iOS Camera (built-in)
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fab fa-android me-2"></i>Android Camera (built-in)
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-qrcode me-2"></i>QR Code Reader
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-qrcode me-2"></i>QR Scanner
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button class="btn btn-success btn-lg" onclick="testLaunch()">
+                        <i class="fas fa-rocket me-2"></i>Test Launch Now
+                    </button>
+                </div>
+                
+                <div class="mt-3">
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Configuration
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- QR Code Information -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>QR Code Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Status</h6>
+                        <h4 class="text-success">
+                            <i class="fas fa-check-circle"></i> Active
+                        </h4>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Generated</h6>
+                        <h4 class="text-info">
+                            <i class="fas fa-clock"></i> <span id="generation-time">Just now</span>
+                        </h4>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Scans</h6>
+                        <h4 class="text-warning">
+                            <i class="fas fa-eye"></i> <span id="scan-count">0</span>
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alternative Methods -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-link me-2"></i>Alternative Access Methods
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Direct Link</h6>
+                        <div class="input-group">
+                            <input type="text" class="form-control" value="{{ qr_data }}" readonly>
+                            <button class="btn btn-outline-secondary" onclick="copyToClipboard('{{ qr_data }}')">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Share Options</h6>
+                        <div class="btn-group w-100" role="group">
+                            <button class="btn btn-outline-primary" onclick="shareQR()">
+                                <i class="fas fa-share-alt me-2"></i>Share
+                            </button>
+                            <button class="btn btn-outline-success" onclick="downloadQR()">
+                                <i class="fas fa-download me-2"></i>Download
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let scanCount = 0;
+
+function testLaunch() {
+    // Simulate a scan and trigger launch
+    scanCount++;
+    document.getElementById('scan-count').textContent = scanCount;
+    
+    // Show loading state
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="loading-spinner me-2"></span>Launching...';
+    button.disabled = true;
+    
+    // Redirect to launch
+    setTimeout(() => {
+        window.location.href = '{{ url_for("launch") }}';
+    }, 1000);
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Show success feedback
+        const button = event.target;
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i>';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+        
+        setTimeout(() => {
+            button.innerHTML = originalHTML;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+    });
+}
+
+function shareQR() {
+    if (navigator.share) {
+        navigator.share({
+            title: 'Launch QR Code',
+            text: 'Scan this QR code to trigger the launch',
+            url: '{{ qr_data }}'
+        });
+    } else {
+        // Fallback: copy to clipboard
+        copyToClipboard('{{ qr_data }}');
+        alert('Link copied to clipboard!');
+    }
+}
+
+function downloadQR() {
+    // Create a download link for the QR code image
+    const link = document.createElement('a');
+    link.href = 'data:image/png;base64,{{ qr_code }}';
+    link.download = 'launch-qr-code.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Update generation time
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    document.getElementById('generation-time').textContent = now.toLocaleTimeString();
+});
+
+// Monitor for QR code scans (this would be implemented with WebSocket in a real app)
+function checkForScans() {
+    // In a real implementation, this would check for actual scans
+    // For demo purposes, we'll just show the current scan count
+    fetch('{{ qr_data }}')
+        .then(response => {
+            if (response.ok) {
+                scanCount++;
+                document.getElementById('scan-count').textContent = scanCount;
+            }
+        })
+        .catch(error => {
+            // Ignore errors for demo
+        });
+}
+
+// Check for scans every 5 seconds
+setInterval(checkForScans, 5000);
+</script>
+{% endblock %}

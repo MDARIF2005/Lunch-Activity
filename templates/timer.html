@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Timer Trigger - Activity Launch App{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white text-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>Schedule Launch
+                </h2>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('schedule_launch') }}" method="POST">
+                    <div class="mb-4">
+                        <label for="launch_time" class="form-label">
+                            <i class="fas fa-calendar-alt me-2"></i>Select Launch Time
+                        </label>
+                        <input type="datetime-local" class="form-control" id="launch_time" name="launch_time" required>
+                        <div class="form-text">
+                            Choose the date and time when you want to trigger the launch.
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-clock me-2"></i>Schedule Launch
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Quick Schedule Options -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>Quick Schedule
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-outline-primary w-100" onclick="setQuickTime(5)">
+                            <i class="fas fa-stopwatch me-2"></i>5 Minutes
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-outline-primary w-100" onclick="setQuickTime(15)">
+                            <i class="fas fa-stopwatch me-2"></i>15 Minutes
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-outline-primary w-100" onclick="setQuickTime(30)">
+                            <i class="fas fa-stopwatch me-2"></i>30 Minutes
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-outline-primary w-100" onclick="setQuickTime(60)">
+                            <i class="fas fa-stopwatch me-2"></i>1 Hour
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Current Time Display -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-globe me-2"></i>Current Time
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Local Time</h6>
+                        <h4 id="local-time" class="text-primary">
+                            <i class="fas fa-clock me-2"></i>
+                            <span id="local-time-display">--:--:--</span>
+                        </h4>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Date</h6>
+                        <h4 id="current-date" class="text-info">
+                            <i class="fas fa-calendar me-2"></i>
+                            <span id="date-display">--/--/----</span>
+                        </h4>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Timezone</h6>
+                        <h4 class="text-secondary">
+                            <i class="fas fa-globe me-2"></i>
+                            <span id="timezone-display">Local</span>
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Instructions -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Instructions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-check-circle text-success me-2"></i>What happens:</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">• Launch is scheduled for the specified time</li>
+                            <li class="mb-2">• Keep this page open until launch time</li>
+                            <li class="mb-2">• Launch will execute automatically</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-exclamation-triangle text-warning me-2"></i>Important:</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">• Don't close this browser tab</li>
+                            <li class="mb-2">• Ensure stable internet connection</li>
+                            <li class="mb-2">• Timer accuracy depends on system clock</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-4">
+            <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Configuration
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function setQuickTime(minutes) {
+    const now = new Date();
+    const launchTime = new Date(now.getTime() + (minutes * 60000));
+    
+    // Format for datetime-local input
+    const year = launchTime.getFullYear();
+    const month = String(launchTime.getMonth() + 1).padStart(2, '0');
+    const day = String(launchTime.getDate()).padStart(2, '0');
+    const hours = String(launchTime.getHours()).padStart(2, '0');
+    const minutes = String(launchTime.getMinutes()).padStart(2, '0');
+    
+    const datetimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+    document.getElementById('launch_time').value = datetimeString;
+}
+
+function updateTime() {
+    const now = new Date();
+    
+    // Update local time
+    const timeString = now.toLocaleTimeString();
+    document.getElementById('local-time-display').textContent = timeString;
+    
+    // Update date
+    const dateString = now.toLocaleDateString();
+    document.getElementById('date-display').textContent = dateString;
+    
+    // Update timezone
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    document.getElementById('timezone-display').textContent = timezone;
+}
+
+// Update time every second
+setInterval(updateTime, 1000);
+updateTime(); // Initial call
+
+// Set minimum time to current time
+document.addEventListener('DOMContentLoaded', function() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    
+    const minDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+    document.getElementById('launch_time').min = minDateTime;
+});
+</script>
+{% endblock %}

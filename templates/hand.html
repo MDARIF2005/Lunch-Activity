@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}Hand Gesture Trigger - Activity Launch App{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="row g-0">
+        <div class="col-12">
+            <div class="position-relative" style="height: 100vh; background: black; overflow: hidden;">
+                <!-- Fullscreen video feed -->
+                <div class="position-absolute top-0 start-0 w-100 h-100" id="video-box" style="cursor: crosshair;">
+                    <img id="cam" src="{{ url_for('video_feed') }}" alt="Camera Feed" 
+                         class="w-100 h-100" style="object-fit: cover;">
+                </div>
+                
+                <!-- Overlay controls -->
+                <div class="position-absolute top-0 start-0 p-3" style="z-index: 10;" id="overlay-controls">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="status-indicator me-2" id="gesture-indicator"></span>
+                        <span id="gesture-text" class="text-white">Waiting for hand detection...</span>
+                    </div>
+                    
+                    <!-- Countdown display -->
+                    <div id="countdown-display" class="text-center" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 20;">
+                        <div class="text-white fs-1 fw-bold" id="countdown-text" style="font-size: 4rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">3</div>
+                        <div class="text-white fs-4" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">Hold steady...</div>
+                    </div>
+                </div>
+                
+                <!-- Target placement button -->
+                <div class="position-absolute bottom-0 start-50 translate-middle-x p-3" style="z-index: 10;" id="target-button">
+                    <button class="btn btn-primary btn-lg" onclick="placeTarget()">
+                        <i class="fas fa-crosshairs me-2"></i>Place/Move Target
+                    </button>
+                </div>
+                
+                <!-- Back button -->
+                <div class="position-absolute top-0 end-0 p-3" style="z-index: 10;">
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-light">
+                        <i class="fas fa-arrow-left me-2"></i>Back
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let pollInterval;
+let placing = false;
+let countdownInterval;
+
+function triggerLaunch() {
+    fetch('{{ url_for("hand_trigger") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            window.location.href = '{{ url_for("launch") }}';
+        } else {
+            throw new Error('Trigger failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to trigger launch. Please try again.');
+    });
+}
+
+function showCountdown(seconds) {
+    const countdownDisplay = document.getElementById('countdown-display');
+    const countdownText = document.getElementById('countdown-text');
+    
+    countdownDisplay.style.display = 'block';
+    const count = Math.ceil(seconds);
+    countdownText.textContent = count;
+    
+    // Add visual feedback for countdown
+    if (count === 3) {
+        countdownText.style.color = '#ff6b6b'; // Red
+    } else if (count === 2) {
+        countdownText.style.color = '#ffa726'; // Orange
+    } else if (count === 1) {
+        countdownText.style.color = '#66bb6a'; // Green
+    }
+    
+    if (seconds <= 0) {
+        countdownDisplay.style.display = 'none';
+        triggerLaunch();
+    }
+}
+
+function hideCountdown() {
+    const countdownDisplay = document.getElementById('countdown-display');
+    countdownDisplay.style.display = 'none';
+}
+
+// Poll hand detection status and auto-trigger
+function startPolling() {
+    pollInterval = setInterval(() => {
+        fetch('{{ url_for("hand_status") }}')
+            .then(r => r.json())
+            .then(data => {
+                const indicator = document.getElementById('gesture-indicator');
+                const text = document.getElementById('gesture-text');
+                
+                if (data.detected) {
+                    indicator.className = 'status-indicator status-active';
+                    
+                    if (data.inside) {
+                        if (data.countdown_remaining > 0) {
+                            text.textContent = `Hand detected! Hold steady...`;
+                            showCountdown(data.countdown_remaining);
+                        } else if (data.launch) {
+                            text.textContent = 'Launching activity...';
+                            hideCountdown();
+                            clearInterval(pollInterval);
+                            setTimeout(() => triggerLaunch(), 500);
+                        }
+                    } else {
+                        text.textContent = 'Move hand into the target area';
+                        hideCountdown();
+                    }
+                } else {
+                    indicator.className = 'status-indicator status-inactive';
+                    text.textContent = 'Waiting for hand...';
+                    hideCountdown();
+                }
+            })
+            .catch(() => {});
+    }, 100); // Faster polling for smoother countdown
+}
+
+document.addEventListener('DOMContentLoaded', startPolling);
+
+// Click to place target region
+function placeTarget() {
+    placing = true;
+    const video = document.getElementById('cam');
+    const box = document.getElementById('video-box');
+    
+    box.style.cursor = 'crosshair';
+    
+    const onClick = (e) => {
+        if (!placing) return;
+        
+        const rect = video.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+        const w = 0.3; // default width
+        const h = 0.4; // default height
+        
+        fetch('{{ url_for("set_hand_target") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ x: x - w/2, y: y - h/2, w, h })
+        }).then(() => {
+            placing = false;
+            box.removeEventListener('click', onClick);
+            box.style.cursor = 'default';
+            alert('Target region set! Move your hand into the blue box to trigger.');
+        });
+    };
+    
+    box.addEventListener('click', onClick);
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (pollInterval) clearInterval(pollInterval);
+    if (countdownInterval) clearInterval(countdownInterval);
+    fetch('{{ url_for("cleanup") }}');
+});
+</script>
+{% endblock %}

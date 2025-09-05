@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Select Launch Configuration - Activity Launch App{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white text-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>Configure Your Launch
+                </h2>
+            </div>
+            <div class="card-body p-4">
+                <form id="launch-form" action="{{ url_for('store_selection') }}" method="POST" enctype="multipart/form-data">
+                    <!-- Launch Type Selection -->
+                    <div class="mb-4">
+                        <h5 class="mb-3">
+                            <i class="fas fa-bullseye me-2"></i>What do you want to launch?
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="launch_type" id="website" value="website" required>
+                                    <label class="form-check-label" for="website">
+                                        <i class="fas fa-globe me-2"></i>Website
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="launch_type" id="image" value="image" required>
+                                    <label class="form-check-label" for="image">
+                                        <i class="fas fa-image me-2"></i>Image/Logo
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="launch_type" id="file" value="file" required>
+                                    <label class="form-check-label" for="file">
+                                        <i class="fas fa-file me-2"></i>File
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Website URL Input -->
+                    <div class="mb-4" id="website-input" style="display: none;">
+                        <label for="website_url" class="form-label">
+                            <i class="fas fa-link me-2"></i>Website URL
+                        </label>
+                        <input type="url" class="form-control" id="website_url" name="website_url" 
+                               placeholder="https://example.com">
+                    </div>
+
+                    <!-- Image Input -->
+                    <div class="mb-4" id="image-input" style="display: none;">
+                        <label for="image_file" class="form-label">
+                            <i class="fas fa-upload me-2"></i>Upload Image/Logo
+                        </label>
+                        <input type="file" class="form-control" id="image_file" name="image_file" 
+                               accept="image/*">
+                        <div class="form-text">Or provide a file path:</div>
+                        <input type="text" class="form-control mt-2" id="image_path" name="image_path" 
+                               placeholder="/path/to/image.jpg">
+                    </div>
+
+                    <!-- File Input -->
+                    <div class="mb-4" id="file-input" style="display: none;">
+                        <label for="file_upload" class="form-label">
+                            <i class="fas fa-upload me-2"></i>Upload File
+                        </label>
+                        <input type="file" class="form-control" id="file_upload" name="file_upload">
+                        <div class="form-text">Or provide a file path:</div>
+                        <input type="text" class="form-control mt-2" id="file_path" name="file_path" 
+                               placeholder="/path/to/file.pdf">
+                    </div>
+
+                    <!-- Trigger Type Selection -->
+                    <div class="mb-4">
+                        <h5 class="mb-3">
+                            <i class="fas fa-magic me-2"></i>How do you want to trigger the launch?
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="trigger_type" id="button" value="button" required>
+                                    <label class="form-check-label" for="button">
+                                        <i class="fas fa-mouse-pointer me-2"></i>Button Click
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="trigger_type" id="hand" value="hand" required>
+                                    <label class="form-check-label" for="hand">
+                                        <i class="fas fa-hand-paper me-2"></i>Hand Gesture
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="trigger_type" id="voice" value="voice" required>
+                                    <label class="form-check-label" for="voice">
+                                        <i class="fas fa-microphone me-2"></i>Voice Command
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="trigger_type" id="timer" value="timer" required>
+                                    <label class="form-check-label" for="timer">
+                                        <i class="fas fa-clock me-2"></i>Timer
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="trigger_type" id="qr" value="qr" required>
+                                    <label class="form-check-label" for="qr">
+                                        <i class="fas fa-qrcode me-2"></i>QR Code
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="trigger_type" id="remote" value="remote" required>
+                                    <label class="form-check-label" for="remote">
+                                        <i class="fas fa-mobile-alt me-2"></i>Remote
+                                    </label>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-rocket me-2"></i>Configure & Launch
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Feature Descriptions -->
+        <div class="row mt-4">
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-hand-paper fa-3x text-primary mb-3"></i>
+                        <h5>Hand Gesture</h5>
+                        <p class="text-muted">Use your camera to detect hand gestures and trigger launches automatically.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-microphone fa-3x text-primary mb-3"></i>
+                        <h5>Voice Command</h5>
+                        <p class="text-muted">Speak commands like "launch website" to trigger your configured launch.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-qrcode fa-3x text-primary mb-3"></i>
+                        <h5>QR Code</h5>
+                        <p class="text-muted">Generate a QR code that you can scan with your phone to trigger the launch.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-user fa-3x text-primary mb-3"></i>
+                        <h5>Proximity Detection</h5>
+                        <p class="text-muted">Automatically detect when someone approaches using face detection.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure all radios are enabled and interactive
+    document.querySelectorAll('input[type="radio"]').forEach(el => {
+        el.disabled = false;
+    });
+
+    const launchTypeRadios = document.querySelectorAll('input[name="launch_type"]');
+    const websiteInput = document.getElementById('website-input');
+    const imageInput = document.getElementById('image-input');
+    const fileInput = document.getElementById('file-input');
+    const websiteUrl = document.getElementById('website_url');
+    const imageFile = document.getElementById('image_file');
+    const imagePath = document.getElementById('image_path');
+    const fileUpload = document.getElementById('file_upload');
+    const filePath = document.getElementById('file_path');
+
+    function setRequiredForLaunch(type) {
+        // Reset all to not required first
+        [websiteUrl, imageFile, imagePath, fileUpload, filePath].forEach(el => {
+            if (el) el.required = false;
+        });
+        // Toggle required for the active launch type
+        if (type === 'website') {
+            if (websiteUrl) websiteUrl.required = true;
+        } else if (type === 'image') {
+            // Either upload or path is acceptable; don't hard-require both
+            // We'll validate on server; keep both optional to allow one
+        } else if (type === 'file') {
+            // Same approach as image
+        }
+    }
+
+    launchTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Hide all inputs
+            websiteInput.style.display = 'none';
+            imageInput.style.display = 'none';
+            fileInput.style.display = 'none';
+
+            // Show relevant input
+            if (this.value === 'website') {
+                websiteInput.style.display = 'block';
+                setRequiredForLaunch('website');
+            } else if (this.value === 'image') {
+                imageInput.style.display = 'block';
+                setRequiredForLaunch('image');
+            } else if (this.value === 'file') {
+                fileInput.style.display = 'block';
+                setRequiredForLaunch('file');
+            }
+        });
+    });
+    
+    // Default: show website URL field when page loads if website is selected
+    const selected = document.querySelector('input[name="launch_type"]:checked');
+    if (selected) {
+        if (selected.value === 'website') websiteInput.style.display = 'block';
+        if (selected.value === 'image') imageInput.style.display = 'block';
+        if (selected.value === 'file') fileInput.style.display = 'block';
+        setRequiredForLaunch(selected.value);
+    }
+
+    // As a safety, validate that at least one of the required values is present before submit
+    const form = document.getElementById('launch-form');
+    form.addEventListener('submit', function(e) {
+        const launchSelected = document.querySelector('input[name="launch_type"]:checked');
+        if (!launchSelected) return; // browser will catch radio required
+        const type = launchSelected.value;
+        if (type === 'website' && (!websiteUrl.value || websiteUrl.value.trim() === '')) {
+            e.preventDefault();
+            websiteInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            websiteUrl.focus();
+        }
+    });
+});
+</script>
+<style>
+/* Safety: ensure form elements are interactive */
+.card input, .card label, .card button, .card select, .card textarea {
+    pointer-events: auto !important;
+    opacity: 1 !important;
+}
+/* Ensure high-contrast readable text in the form */
+#launch-form, #launch-form * { opacity: 1 !important; }
+#launch-form h5, #launch-form label, #launch-form .form-text, #launch-form .form-check-label { color: #0f172a !important; }
+#launch-form .form-text { color: #334155 !important; }
+#launch-form i { opacity: 1 !important; color: #0f172a !important; }
+.card-header.bg-primary h2 { color: #fff !important; }
+</style>
+{% endblock %}

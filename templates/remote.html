@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}Remote Trigger - Activity Launch App{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white text-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-mobile-alt me-2"></i>Remote Launch Control
+                </h2>
+            </div>
+            <div class="card-body p-4 text-center">
+                <div class="mb-4">
+                    <i class="fas fa-mobile-alt fa-5x text-primary mb-3"></i>
+                    <h4>Remote Launch Ready</h4>
+                    <p class="text-muted">Use the button below to trigger the launch remotely</p>
+                </div>
+                
+                <div class="mb-4">
+                    <button class="btn btn-success btn-lg btn-launch" onclick="triggerRemoteLaunch()">
+                        <i class="fas fa-rocket me-2"></i>Launch Now
+                    </button>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Mobile Friendly:</strong> This page is optimized for mobile devices. 
+                    You can bookmark it and access it from anywhere.
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas fa-share-alt me-2"></i>Share This Page
+                                </h6>
+                                <p class="text-muted">Share this link with others to allow remote access</p>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="share-url" 
+                                           value="{{ request.url }}" readonly>
+                                    <button class="btn btn-outline-secondary" onclick="copyShareUrl()">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas fa-qrcode me-2"></i>QR Code Access
+                                </h6>
+                                <p class="text-muted">Generate a QR code for easy mobile access</p>
+                                <button class="btn btn-outline-primary w-100" onclick="generateQR()">
+                                    <i class="fas fa-qrcode me-2"></i>Generate QR Code
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Configuration
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Launch History -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Launch History
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="launch-history">
+                    <p class="text-muted text-center">No launches yet</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Remote Access Information -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Remote Access Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Access URL</h6>
+                        <h6 class="text-primary">
+                            <i class="fas fa-link me-2"></i>
+                            <span id="access-url">{{ request.url }}</span>
+                        </h6>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Status</h6>
+                        <h6 class="text-success">
+                            <i class="fas fa-check-circle me-2"></i>Active
+                        </h6>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted">Launches</h6>
+                        <h6 class="text-info">
+                            <i class="fas fa-rocket me-2"></i>
+                            <span id="launch-count">0</span>
+                        </h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QR Code Modal -->
+<div class="modal fade" id="qrModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-qrcode me-2"></i>QR Code for Remote Access
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="qr-code-display"></div>
+                <p class="text-muted mt-3">Scan this QR code with your mobile device to access the remote launch page</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="downloadQRCode()">
+                    <i class="fas fa-download me-2"></i>Download QR Code
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>
+let launchCount = 0;
+let launchHistory = [];
+
+function triggerRemoteLaunch() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // Show loading state
+    button.innerHTML = '<span class="loading-spinner me-2"></span>Launching...';
+    button.disabled = true;
+    
+    // Add to history
+    const launchTime = new Date();
+    launchHistory.unshift({
+        timestamp: launchTime.toLocaleString(),
+        success: true
+    });
+    
+    // Update count
+    launchCount++;
+    document.getElementById('launch-count').textContent = launchCount;
+    updateLaunchHistory();
+    
+    // Send request to trigger launch
+    fetch('{{ url_for("remote_launch") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            // Success - redirect to launch page
+            setTimeout(() => {
+                window.location.href = '{{ url_for("launch") }}';
+            }, 1000);
+        } else {
+            throw new Error('Launch failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        button.innerHTML = originalText;
+        button.disabled = false;
+        
+        // Add failed attempt to history
+        launchHistory.unshift({
+            timestamp: new Date().toLocaleString(),
+            success: false
+        });
+        updateLaunchHistory();
+        
+        alert('Failed to trigger launch. Please try again.');
+    });
+}
+
+function copyShareUrl() {
+    const urlInput = document.getElementById('share-url');
+    urlInput.select();
+    urlInput.setSelectionRange(0, 99999); // For mobile devices
+    
+    navigator.clipboard.writeText(urlInput.value).then(function() {
+        // Show success feedback
+        const button = event.target;
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i>';
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-success');
+        
+        setTimeout(() => {
+            button.innerHTML = originalHTML;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+    });
+}
+
+function generateQR() {
+    const url = window.location.href;
+    
+    // Generate QR code
+    QRCode.toCanvas(document.getElementById('qr-code-display'), url, {
+        width: 200,
+        height: 200,
+        color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+        }
+    }, function (error) {
+        if (error) {
+            console.error('QR Code generation failed:', error);
+            alert('Failed to generate QR code');
+        } else {
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('qrModal'));
+            modal.show();
+        }
+    });
+}
+
+function downloadQRCode() {
+    const canvas = document.querySelector('#qr-code-display canvas');
+    if (canvas) {
+        const link = document.createElement('a');
+        link.download = 'remote-launch-qr.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    }
+}
+
+function updateLaunchHistory() {
+    const historyDiv = document.getElementById('launch-history');
+    
+    if (launchHistory.length === 0) {
+        historyDiv.innerHTML = '<p class="text-muted text-center">No launches yet</p>';
+    } else {
+        // Keep only last 10 launches
+        if (launchHistory.length > 10) {
+            launchHistory = launchHistory.slice(0, 10);
+        }
+        
+        historyDiv.innerHTML = launchHistory.map(launch => `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <i class="fas fa-${launch.success ? 'check-circle text-success' : 'times-circle text-danger'} me-2"></i>
+                    ${launch.success ? 'Launch Successful' : 'Launch Failed'}
+                </div>
+                <small class="text-muted">${launch.timestamp}</small>
+            </div>
+        `).join('');
+    }
+}
+
+// Add some demo launches for better UX
+document.addEventListener('DOMContentLoaded', function() {
+    // Add a demo launch entry
+    launchHistory.push({
+        timestamp: new Date().toLocaleString(),
+        success: true
+    });
+    launchCount = 1;
+    document.getElementById('launch-count').textContent = launchCount;
+    updateLaunchHistory();
+});
+
+// Make the launch button more prominent on mobile
+if (window.innerWidth <= 768) {
+    document.querySelector('.btn-launch').style.fontSize = '1.5rem';
+    document.querySelector('.btn-launch').style.padding = '20px 40px';
+}
+</script>
+{% endblock %}
