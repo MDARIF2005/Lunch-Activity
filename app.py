@@ -200,8 +200,8 @@ def gen_frames():
                             inside_target = True
                             hand_inside_at = time.time()
                             
-                            # Start countdown if hand is in target area for 0.3 seconds
-                            if hand_inside_at - hand_detected_at > 0.3 and not countdown_active:
+                            # Start countdown if hand is in target area for 0.5 seconds
+                            if not countdown_active:
                                 countdown_active = True
                                 countdown_start = time.time()
                         else:
@@ -237,10 +237,18 @@ def gen_frames():
                     remaining = max(0, 3.0 - elapsed)
                     
                     if remaining > 0:
-                        # Draw countdown
-                        countdown_text = f"Countdown: {remaining:.1f}s"
-                        cv2.putText(frame, countdown_text, (w_frame//2 - 100, h_frame//2), 
-                                  cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 255), 3)
+                        # Draw countdown with big numbers
+                        countdown_number = int(remaining) + 1
+                        if countdown_number > 3:
+                            countdown_number = 3
+                        
+                        # Draw big countdown number
+                        cv2.putText(frame, str(countdown_number), (w_frame//2 - 50, h_frame//2), 
+                                  cv2.FONT_HERSHEY_SIMPLEX, 4, (0, 255, 0), 6)
+                        
+                        # Draw progress text
+                        cv2.putText(frame, "Hold steady...", (w_frame//2 - 80, h_frame//2 + 60), 
+                                  cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
                         
                         # Draw progress bar
                         bar_width = 300
@@ -258,6 +266,13 @@ def gen_frames():
                         # Countdown finished - trigger launch
                         cv2.putText(frame, "LAUNCHING!", (w_frame//2 - 80, h_frame//2), 
                                   cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 3)
+                        
+                        # Reset countdown to prevent multiple launches
+                        countdown_active = False
+                        countdown_start = 0
+                        
+                        # Trigger the launch (this will be handled by the frontend)
+                        # The frontend will detect this and redirect to launch page
             
             # Always show the hand sketch as a target overlay
             if hand_sketch is not None:
@@ -442,6 +457,14 @@ def video_feed():
 def hand_trigger():
     """Triggered when hand gesture is detected"""
     return redirect(url_for('launch'))
+
+@app.route('/trigger_launch', methods=['POST'])
+def trigger_launch():
+    """Triggered when countdown reaches 0"""
+    global countdown_active, countdown_start
+    countdown_active = False
+    countdown_start = 0
+    return jsonify({"success": True, "message": "Launch triggered"})
 
 @app.route('/hand_status')
 def hand_status():
