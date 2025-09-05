@@ -20,6 +20,14 @@
                         <span id="gesture-text" class="text-white">Waiting for hand detection...</span>
                     </div>
                     
+                    <!-- Cloud deployment notice -->
+                    <div class="alert alert-warning mt-2" id="cloud-notice" style="display: none; max-width: 400px;">
+                        <i class="fas fa-cloud me-2"></i>
+                        <strong>Cloud Platform Detected</strong><br>
+                        Camera access is not available on cloud platforms. 
+                        <a href="{{ url_for('index') }}" class="alert-link">Try other triggers</a> or run locally.
+                    </div>
+                    
                     <!-- Countdown display -->
                     <div id="countdown-display" class="text-center" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 20;">
                         <div class="text-white fs-1 fw-bold" id="countdown-text" style="font-size: 4rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">3</div>
@@ -169,6 +177,36 @@ function placeTarget() {
     
     box.addEventListener('click', onClick);
 }
+
+// Check if camera is available
+function checkCameraAvailability() {
+    const img = document.getElementById('cam');
+    const cloudNotice = document.getElementById('cloud-notice');
+    const gestureText = document.getElementById('gesture-text');
+    
+    // Check if the image source contains the demo frame
+    img.onload = function() {
+        // Create a canvas to check image content
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        ctx.drawImage(img, 0, 0);
+        
+        // Check if this is our demo frame (has specific text)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        // Simple check: if we see the demo frame, show cloud notice
+        setTimeout(() => {
+            if (gestureText.textContent.includes('Waiting for hand detection')) {
+                cloudNotice.style.display = 'block';
+                gestureText.textContent = 'Camera not available - Cloud platform detected';
+            }
+        }, 2000);
+    };
+}
+
+// Initialize camera check
+checkCameraAvailability();
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', function() {

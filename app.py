@@ -75,23 +75,49 @@ def gen_frames():
         if camera is None:
             # Try different camera indices
             for i in range(3):  # Try cameras 0, 1, 2
-                camera = cv2.VideoCapture(i)
-                if camera.isOpened():
-                    print(f"Camera {i} initialized successfully")
-                    break
-                else:
-                    camera.release()
-                    camera = None
+                try:
+                    camera = cv2.VideoCapture(i)
+                    if camera.isOpened():
+                        print(f"Camera {i} initialized successfully")
+                        break
+                    else:
+                        camera.release()
+                        camera = None
+                except Exception as e:
+                    print(f"Error trying camera {i}: {e}")
+                    if camera:
+                        camera.release()
+                        camera = None
             
             if camera is None:
-                print("Error: Could not open any camera")
+                print("Error: Could not open any camera - this is normal on cloud platforms")
     
     while True:
         if camera is None:
-            # Create a test frame if camera is not available
+            # Create a demo frame if camera is not available (for cloud deployment)
             frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            cv2.putText(frame, "Camera not available", (50, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-            cv2.putText(frame, "Please check camera connection", (50, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            # Add gradient background
+            for i in range(480):
+                frame[i, :] = [int(50 + i * 0.3), int(50 + i * 0.2), int(100 + i * 0.1)]
+            
+            # Add title
+            cv2.putText(frame, "Hand Gesture Detection", (120, 80), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 2)
+            
+            # Add status message
+            cv2.putText(frame, "Camera not available on cloud platform", (80, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            cv2.putText(frame, "This feature requires a local camera", (100, 180), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            # Add instructions
+            cv2.putText(frame, "To test hand detection:", (50, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            cv2.putText(frame, "1. Run locally: python app.py", (50, 280), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            cv2.putText(frame, "2. Allow camera access", (50, 310), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            cv2.putText(frame, "3. Show your hand to trigger", (50, 340), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            
+            # Add demo hand outline
+            cv2.rectangle(frame, (200, 200), (400, 400), (0, 255, 0), 2)
+            cv2.putText(frame, "Demo Target Area", (220, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            
             h_frame, w_frame = frame.shape[:2]
         else:
             success, frame = camera.read()
@@ -412,10 +438,10 @@ def voice_command():
 @app.route('/listen', methods=['POST'])
 def listen():
     """Listen for voice commands"""
-    recognizer = sr.Recognizer()
-    microphone = sr.Microphone()
-    
     try:
+        recognizer = sr.Recognizer()
+        microphone = sr.Microphone()
+        
         with microphone as source:
             recognizer.adjust_for_ambient_noise(source)
             audio = recognizer.listen(source, timeout=5)
@@ -431,6 +457,13 @@ def listen():
         return jsonify({"success": False, "message": "Could not understand audio"})
     except sr.RequestError:
         return jsonify({"success": False, "message": "Could not request results"})
+    except OSError as e:
+        if "PyAudio" in str(e) or "portaudio" in str(e).lower():
+            return jsonify({"success": False, "message": "Microphone not available. Please install PyAudio: pip install pyaudio"})
+        else:
+            return jsonify({"success": False, "message": f"Audio error: {str(e)}"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Unexpected error: {str(e)}"})
 
 @app.route('/timer')
 def timer_trigger():
