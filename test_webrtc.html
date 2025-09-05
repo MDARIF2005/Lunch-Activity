@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebRTC Camera Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        video { width: 640px; height: 480px; border: 2px solid #333; }
+        .status { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>WebRTC Camera Test</h1>
+    <div id="status" class="status info">Initializing camera...</div>
+    <video id="webcam" autoplay muted playsinline></video>
+    <div id="info"></div>
+
+    <script>
+        async function initCamera() {
+            const status = document.getElementById('status');
+            const webcam = document.getElementById('webcam');
+            const info = document.getElementById('info');
+            
+            try {
+                // Request camera access
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: 640, 
+                        height: 480,
+                        facingMode: 'user'
+                    } 
+                });
+                
+                // Set video source
+                webcam.srcObject = stream;
+                
+                // Update status
+                status.textContent = 'Camera connected successfully!';
+                status.className = 'status success';
+                
+                // Show video info
+                webcam.onloadedmetadata = () => {
+                    info.innerHTML = `
+                        <p><strong>Video Resolution:</strong> ${webcam.videoWidth}x${webcam.videoHeight}</p>
+                        <p><strong>Status:</strong> Ready for hand detection</p>
+                        <p><strong>Browser:</strong> ${navigator.userAgent}</p>
+                    `;
+                };
+                
+                console.log('WebRTC camera initialized successfully');
+                
+            } catch (error) {
+                status.textContent = `Camera access failed: ${error.message}`;
+                status.className = 'status error';
+                console.error('Camera access failed:', error);
+            }
+        }
+
+        // Initialize camera when page loads
+        window.onload = initCamera;
+    </script>
+</body>
+</html>
