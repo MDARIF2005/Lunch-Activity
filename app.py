@@ -305,30 +305,41 @@ def gen_frames():
                     target_x = (w_frame - new_w) // 2
                     target_y = (h_frame - new_h) // 2
                     
-                    sketch_resized = cv2.resize(hand_sketch, (new_w, new_h))
+                    # Create a simple white hand outline
+                    # Draw a white hand shape using basic shapes
+                    center_x = target_x + new_w // 2
+                    center_y = target_y + new_h // 2
                     
-                    if hand_sketch.shape[2] == 4:  # Has alpha channel
-                        # Extract alpha channel for transparency
-                        alpha = sketch_resized[:, :, 3] / 255.0
-                        
-                        # Overlay the hand sketch with transparency
-                        for c in range(3):
-                            frame[target_y:target_y+new_h, target_x:target_x+new_w, c] = \
-                                frame[target_y:target_y+new_h, target_x:target_x+new_w, c] * (1 - alpha) + \
-                                sketch_resized[:, :, c] * alpha
-                    else:
-                        # No alpha channel, create a simple overlay
-                        # Convert to white outline for better visibility
-                        gray = cv2.cvtColor(sketch_resized, cv2.COLOR_BGR2GRAY)
-                        edges = cv2.Canny(gray, 50, 150)
-                        edges = cv2.dilate(edges, None, iterations=2)
-                        
-                        # Create white outline
-                        white_outline = np.zeros_like(sketch_resized)
-                        white_outline[edges > 0] = [255, 255, 255]
-                        
-                        # Overlay the white outline
-                        frame[target_y:target_y+new_h, target_x:target_x+new_w] = white_outline
+                    # Draw hand outline as white lines
+                    cv2.rectangle(frame, (target_x, target_y), (target_x + new_w, target_y + new_h), (255, 255, 255), 3)
+                    
+                    # Draw fingers
+                    finger_width = new_w // 8
+                    finger_height = new_h // 3
+                    
+                    # Thumb
+                    cv2.rectangle(frame, (target_x, target_y + finger_height), 
+                                (target_x + finger_width, target_y + finger_height * 2), (255, 255, 255), 3)
+                    
+                    # Index finger
+                    cv2.rectangle(frame, (target_x + finger_width, target_y), 
+                                (target_x + finger_width * 2, target_y + finger_height), (255, 255, 255), 3)
+                    
+                    # Middle finger
+                    cv2.rectangle(frame, (target_x + finger_width * 2, target_y), 
+                                (target_x + finger_width * 3, target_y + finger_height), (255, 255, 255), 3)
+                    
+                    # Ring finger
+                    cv2.rectangle(frame, (target_x + finger_width * 3, target_y), 
+                                (target_x + finger_width * 4, target_y + finger_height), (255, 255, 255), 3)
+                    
+                    # Pinky
+                    cv2.rectangle(frame, (target_x + finger_width * 4, target_y), 
+                                (target_x + finger_width * 5, target_y + finger_height), (255, 255, 255), 3)
+                    
+                    # Palm
+                    cv2.rectangle(frame, (target_x + finger_width, target_y + finger_height), 
+                                (target_x + finger_width * 4, target_y + new_h), (255, 255, 255), 3)
                     
                     # Add bright green border around the target area
                     cv2.rectangle(frame, (target_x-5, target_y-5), 
@@ -342,7 +353,7 @@ def gen_frames():
             # Display status text
             if detected:
                 if inside_target:
-                    cv2.putText(frame, "Position your hand on the black hand sketch", (10, 30), 
+                    cv2.putText(frame, "Position your hand on the white hand sketch", (10, 30), 
                               cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
                 else:
                     cv2.putText(frame, "Move your hand to the hand sketch target", (10, 30), 
