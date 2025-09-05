@@ -155,6 +155,10 @@ def gen_frames():
                 # Find contours
                 contours, _ = cv2.findContours(skin_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
+            # Initialize contours if not set
+            if 'contours' not in locals():
+                contours = []
+            
             detected = False
             inside_target = False
             
@@ -179,62 +183,88 @@ def gen_frames():
                     cy = y + h // 2
                     current_centroid = (cx, cy)
                     
-                    # Check if hand is in center area (where hand sketch is)
-                    center_x = w_frame // 2
-                    center_y = h_frame // 2
-                    center_tolerance = min(w_frame, h_frame) // 4  # Quarter of screen size
-                    
-                    if (abs(cx - center_x) < center_tolerance and 
-                        abs(cy - center_y) < center_tolerance):
-                        inside_target = True
-                        hand_inside_at = time.time()
+                    # Check if hand is over the hand sketch target area
+                    # Calculate target area based on hand sketch position
+                    if hand_sketch is not None:
+                        sketch_h, sketch_w = hand_sketch.shape[:2]
+                        scale = min(w_frame * 0.3 / sketch_w, h_frame * 0.3 / sketch_h)
+                        new_w = int(sketch_w * scale)
+                        new_h = int(sketch_h * scale)
                         
-                        # Start countdown if not already active
-                        if not countdown_active:
-                            countdown_start = time.time()
-                            countdown_active = True
+                        target_x = (w_frame - new_w) // 2
+                        target_y = (h_frame - new_h) // 2
                         
-                        # Calculate countdown progress
-                        elapsed = time.time() - countdown_start
-                        remaining = max(0, 3.0 - elapsed)
-                        
-                        if remaining > 0:
-                            # Draw countdown
-                            countdown_text = f"Countdown: {remaining:.1f}s"
-                            cv2.putText(frame, countdown_text, (w_frame//2 - 100, h_frame//2), 
-                                      cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 255), 3)
+                        # Check if hand center is within the hand sketch target area
+                        if (target_x <= cx <= target_x + new_w and 
+                            target_y <= cy <= target_y + new_h):
+                            inside_target = True
+                            hand_inside_at = time.time()
                             
-                            # Draw progress bar
-                            bar_width = 300
-                            bar_height = 20
-                            bar_x = w_frame//2 - bar_width//2
-                            bar_y = h_frame//2 + 50
-                            
-                            # Background bar
-                            cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (50, 50, 50), -1)
-                            # Progress bar
-                            progress = (3.0 - remaining) / 3.0
-                            progress_width = int(bar_width * progress)
-                            cv2.rectangle(frame, (bar_x, bar_y), (bar_x + progress_width, bar_y + bar_height), (0, 255, 0), -1)
+                            # Start countdown if hand is in target area for 0.5 seconds
+                            if hand_inside_at - hand_detected_at > 0.5 and not countdown_active:
+                                countdown_active = True
+                                countdown_start = time.time()
                         else:
-                            # Countdown finished - trigger launch
-                            cv2.putText(frame, "LAUNCHING!", (w_frame//2 - 80, h_frame//2), 
-                                      cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 3)
+                            inside_target = False
+                            countdown_active = False
+                            countdown_start = 0
                     else:
-                        # Reset countdown if hand moves out of center area
-                        countdown_active = False
-                        countdown_start = 0
+                        # Fallback to center area if no hand sketch
+                        center_x = w_frame // 2
+                        center_y = h_frame // 2
+                        center_tolerance = min(w_frame, h_frame) // 4
+                        
+                        if (abs(cx - center_x) < center_tolerance and 
+                            abs(cy - center_y) < center_tolerance):
+                            inside_target = True
+                            hand_inside_at = time.time()
+                            
+                            if not countdown_active:
+                                countdown_start = time.time()
+                                countdown_active = True
+                        else:
+                            inside_target = False
+                            countdown_active = False
+                            countdown_start = 0
                 else:
                     # Reset countdown if no hand detected
                     countdown_active = False
                     countdown_start = 0
+                
+                # Handle countdown display and launch
+                if countdown_active:
+                    elapsed = time.time() - countdown_start
+                    remaining = max(0, 3.0 - elapsed)
+                    
+                    if remaining > 0:
+                        # Draw countdown
+                        countdown_text = f"Countdown: {remaining:.1f}s"
+                        cv2.putText(frame, countdown_text, (w_frame//2 - 100, h_frame//2), 
+                                  cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 255), 3)
+                        
+                        # Draw progress bar
+                        bar_width = 300
+                        bar_height = 20
+                        bar_x = w_frame//2 - bar_width//2
+                        bar_y = h_frame//2 + 50
+                        
+                        # Background bar
+                        cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (50, 50, 50), -1)
+                        # Progress bar
+                        progress = (3.0 - remaining) / 3.0
+                        progress_width = int(bar_width * progress)
+                        cv2.rectangle(frame, (bar_x, bar_y), (bar_x + progress_width, bar_y + bar_height), (0, 255, 0), -1)
+                    else:
+                        # Countdown finished - trigger launch
+                        cv2.putText(frame, "LAUNCHING!", (w_frame//2 - 80, h_frame//2), 
+                                  cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 255, 0), 3)
             
-            # Always show the transparent hand sketch at center when hand is detected
-            if detected and hand_sketch is not None:
+            # Always show the hand sketch as a target overlay
+            if hand_sketch is not None:
                 try:
                     # Resize hand sketch to fit nicely in the center
                     sketch_h, sketch_w = hand_sketch.shape[:2]
-                    scale = min(w_frame * 0.4 / sketch_w, h_frame * 0.4 / sketch_h)
+                    scale = min(w_frame * 0.3 / sketch_w, h_frame * 0.3 / sketch_h)
                     new_w = int(sketch_w * scale)
                     new_h = int(sketch_h * scale)
                     
@@ -244,31 +274,39 @@ def gen_frames():
                     
                     sketch_resized = cv2.resize(hand_sketch, (new_w, new_h))
                     
-                    if hand_sketch.shape[2] == 4:  # Has alpha channel
-                        # Extract alpha channel for transparency
-                        alpha = sketch_resized[:, :, 3] / 255.0
-                        
-                        # Blend with original camera frame (transparent overlay)
-                        for c in range(3):
-                            frame[y_offset:y_offset+new_h, x_offset:x_offset+new_w, c] = \
-                                alpha * sketch_resized[:, :, c] + (1 - alpha) * frame[y_offset:y_offset+new_h, x_offset:x_offset+new_w, c]
-                    else:
-                        # If no alpha channel, create one by making white pixels transparent
-                        # Convert to grayscale to find white background
-                        gray = cv2.cvtColor(sketch_resized, cv2.COLOR_BGR2GRAY)
-                        # Create alpha channel where white pixels (background) are transparent
-                        alpha = np.where(gray > 240, 0, 1).astype(np.float32)  # White pixels become transparent
-                        
-                        # Apply transparency
-                        for c in range(3):
-                            frame[y_offset:y_offset+new_h, x_offset:x_offset+new_w, c] = \
-                                alpha * sketch_resized[:, :, c] + (1 - alpha) * frame[y_offset:y_offset+new_h, x_offset:x_offset+new_w, c]
+                    # Create a simple black line drawing effect
+                    # Convert to grayscale
+                    gray = cv2.cvtColor(sketch_resized, cv2.COLOR_BGR2GRAY)
+                    
+                    # Create edge detection for black lines
+                    edges = cv2.Canny(gray, 50, 150)
+                    
+                    # Convert edges to 3-channel BGR
+                    edges_bgr = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
+                    
+                    # Make white background transparent, keep black lines
+                    # Create mask where black lines (low values) are kept
+                    mask = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY_INV)[1]
+                    mask_3ch = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR) / 255.0
+                    
+                    # Apply the hand sketch as black lines overlay
+                    for c in range(3):
+                        frame[y_offset:y_offset+new_h, x_offset:x_offset+new_w, c] = \
+                            frame[y_offset:y_offset+new_h, x_offset:x_offset+new_w, c] * (1 - mask_3ch[:, :, 0]) + \
+                            (0, 0, 0)[c] * mask_3ch[:, :, 0]  # Black lines
+                    
+                    # Draw a subtle border around the target area
+                    cv2.rectangle(frame, (x_offset-5, y_offset-5), 
+                                (x_offset+new_w+5, y_offset+new_h+5), (0, 255, 0), 2)
+                    
                 except Exception as e:
                     print(f"Error overlaying hand sketch: {e}")
             
             # Show instruction when no hand is detected
             if not detected:
-                cv2.putText(frame, "Show your hand to trigger", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+                cv2.putText(frame, "Position your hand on the black hand sketch", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+            elif detected and not inside_target:
+                cv2.putText(frame, "Move your hand to the hand sketch target", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
             
             if detected:
                 hand_detected_at = time.time()
