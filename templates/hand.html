@@ -334,6 +334,22 @@ function startHandDetection() {
     detectHands();
 }
 
+// Check for launch triggers
+function checkLaunchTrigger() {
+    fetch('{{ url_for("check_launch") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.launch) {
+                // Launch triggered, redirect to launch page
+                window.location.href = '{{ url_for("launch") }}';
+            }
+        })
+        .catch(error => console.error('Error checking launch:', error));
+}
+
+// Check for launch every 100ms
+setInterval(checkLaunchTrigger, 100);
+
 // Initialize camera
 initWebcam();
 

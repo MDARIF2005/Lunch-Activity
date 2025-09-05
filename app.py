@@ -49,6 +49,7 @@ def allowed_file(filename):
 countdown_active = False
 countdown_start = 0.0
 hand_sketch = None
+launch_triggered = False
 
 def load_hand_sketch():
     """Load the hand sketch image for overlay"""
@@ -288,8 +289,9 @@ def gen_frames():
                     countdown_active = False
                     countdown_start = 0
                     
-                    # Trigger the launch (this will be handled by the frontend)
-                    # The frontend will detect this and redirect to launch page
+                    # Set a flag to trigger launch on next frame
+                    global launch_triggered
+                    launch_triggered = True
             
             # Always show the hand sketch as a target overlay
             if hand_sketch is not None:
@@ -315,8 +317,18 @@ def gen_frames():
                                 frame[target_y:target_y+new_h, target_x:target_x+new_w, c] * (1 - alpha) + \
                                 sketch_resized[:, :, c] * alpha
                     else:
-                        # No alpha channel, overlay directly
-                        frame[target_y:target_y+new_h, target_x:target_x+new_w] = sketch_resized
+                        # No alpha channel, create a simple overlay
+                        # Convert to white outline for better visibility
+                        gray = cv2.cvtColor(sketch_resized, cv2.COLOR_BGR2GRAY)
+                        edges = cv2.Canny(gray, 50, 150)
+                        edges = cv2.dilate(edges, None, iterations=2)
+                        
+                        # Create white outline
+                        white_outline = np.zeros_like(sketch_resized)
+                        white_outline[edges > 0] = [255, 255, 255]
+                        
+                        # Overlay the white outline
+                        frame[target_y:target_y+new_h, target_x:target_x+new_w] = white_outline
                     
                     # Add bright green border around the target area
                     cv2.rectangle(frame, (target_x-5, target_y-5), 
@@ -586,6 +598,24 @@ def remote_trigger():
 def remote_launch():
     """Remote launch endpoint"""
     return redirect(url_for('launch'))
+
+@app.route('/hand_launch', methods=['POST'])
+def hand_launch():
+    """Triggered when hand countdown reaches 0"""
+    global countdown_active, countdown_start, launch_triggered
+    countdown_active = False
+    countdown_start = 0
+    launch_triggered = False
+    return redirect(url_for('launch'))
+
+@app.route('/check_launch')
+def check_launch():
+    """Check if launch should be triggered"""
+    global launch_triggered
+    if launch_triggered:
+        launch_triggered = False
+        return jsonify({"launch": True})
+    return jsonify({"launch": False})
 
 # Proximity routes removed
 
