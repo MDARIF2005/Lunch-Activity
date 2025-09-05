@@ -3,7 +3,7 @@ opencv-python==4.8.1.78
 speechrecognition==3.10.0
 qrcode==7.4.2
 pyzbar==0.1.9
-Pillow==10.3.0
+Pillow==10.0.1
 Werkzeug==2.3.7
 schedule==1.2.0
 pyaudio==0.2.11
