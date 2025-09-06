@@ -138,19 +138,17 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if type == 'website' and website_url %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() {
-        window.open("{{ website_url }}", '_blank');
-    }, 500);
-});
-</script>
-{% endif %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const now = new Date();
-    document.getElementById('launch-timestamp').textContent = now.toLocaleTimeString();
+    const ts = document.getElementById('launch-timestamp');
+    if (ts) ts.textContent = now.toLocaleTimeString();
+    {% if type == 'website' and website_url %}
+    // Automatically open the launched website in a new tab
+    setTimeout(function() {
+        window.open("{{ website_url }}", '_blank');
+    }, 500);
+    {% endif %}
 });
 </script>
 {% endblock %}
