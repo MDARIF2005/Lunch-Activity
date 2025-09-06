@@ -8,42 +8,31 @@
         <div class="col-12">
             <div class="position-relative" style="height: 100vh; background: black; overflow: hidden;">
                 <!-- Fullscreen video feed -->
-                <div class="position-absolute top-0 start-0 w-100 h-100" id="video-box" style="cursor: crosshair;">
-                    <!-- WebRTC Video Stream -->
-                    <video id="webcam" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; display: none;"></video>
-                    <!-- Fallback Image Stream -->
+                <div class="position-absolute top-0 start-0 w-100 h-100">
                     <img id="cam" src="{{ url_for('video_feed') }}" alt="Camera Feed" 
                          class="w-100 h-100" style="object-fit: cover;">
                 </div>
                 
                 <!-- Overlay controls -->
-                <div class="position-absolute top-0 start-0 p-3" style="z-index: 10;" id="overlay-controls">
+                <div class="position-absolute top-0 start-0 p-3" style="z-index: 10;">
                     <div class="d-flex align-items-center mb-2">
                         <span class="status-indicator me-2" id="gesture-indicator"></span>
                         <span id="gesture-text" class="text-white">Waiting for hand detection...</span>
                     </div>
                     
-                    <!-- Cloud deployment notice -->
-                    <div class="alert alert-warning mt-2" id="cloud-notice" style="display: none; max-width: 400px;">
-                        <i class="fas fa-cloud me-2"></i>
-                        <strong>Cloud Platform Detected</strong><br>
-                        Camera access is not available on cloud platforms. 
-                        <a href="{{ url_for('index') }}" class="alert-link">Try other triggers</a> or run locally.
-                        <br><small>Updated: WebRTC camera access now available!</small>
-                    </div>
-                    
-                    <!-- Countdown display -->
-                    <div id="countdown-display" class="text-center" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 20;">
-                        <div class="text-white fs-1 fw-bold" id="countdown-text" style="font-size: 4rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">3</div>
-                        <div class="text-white fs-4" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">Hold steady...</div>
+                    <!-- Camera status notice -->
+                    <div class="alert alert-info mt-2" id="camera-notice" style="max-width: 400px;">
+                        <i class="fas fa-camera me-2"></i>
+                        <strong>Hand Gesture Detection</strong><br>
+                        Place your hand over the hand sketch in the center to trigger the countdown.
+                        <br><small>Make sure your camera is working and well-lit.</small>
                     </div>
                 </div>
                 
-                <!-- Target placement button -->
-                <div class="position-absolute bottom-0 start-50 translate-middle-x p-3" style="z-index: 10;" id="target-button">
-                    <button class="btn btn-primary btn-lg" onclick="placeTarget()">
-                        <i class="fas fa-crosshairs me-2"></i>Place/Move Target
-                    </button>
+                <!-- Countdown display at the top -->
+                <div id="countdown-display" class="text-center" style="display: none; position: absolute; top: 5%; left: 50%; transform: translateX(-50%); z-index: 20;">
+                    <div class="text-white fs-1 fw-bold" id="countdown-text" style="font-size: 6rem; text-shadow: 3px 3px 6px rgba(0,0,0,0.9);">3</div>
+                    <div class="text-white fs-3" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">Hold steady...</div>
                 </div>
                 
                 <!-- Back button -->
@@ -59,13 +48,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- TensorFlow.js for client-side hand detection -->
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@latest"></script>
 <script>
 let pollInterval;
-let placing = false;
-let countdownInterval;
 
 function triggerLaunch() {
     fetch('{{ url_for("hand_trigger") }}', {
@@ -90,11 +74,9 @@ function triggerLaunch() {
 function showCountdown(seconds) {
     const countdownDisplay = document.getElementById('countdown-display');
     const countdownText = document.getElementById('countdown-text');
-    
     countdownDisplay.style.display = 'block';
     const count = Math.ceil(seconds);
     countdownText.textContent = count;
-    
     // Add visual feedback for countdown
     if (count === 3) {
         countdownText.style.color = '#ff6b6b'; // Red
@@ -103,11 +85,7 @@ function showCountdown(seconds) {
     } else if (count === 1) {
         countdownText.style.color = '#66bb6a'; // Green
     }
-    
-    if (seconds <= 0) {
-        countdownDisplay.style.display = 'none';
-        triggerLaunch();
-    }
+    // Do NOT trigger launch here; only show countdown
 }
 
 function hideCountdown() {
@@ -135,7 +113,10 @@ function startPolling() {
                             text.textContent = 'Launching activity...';
                             hideCountdown();
                             clearInterval(pollInterval);
-                            setTimeout(() => triggerLaunch(), 500);
+                            setTimeout(() => triggerLaunch(), 100); // Launch only if backend says so
+                        } else {
+                            text.textContent = 'Move hand into the target area';
+                            hideCountdown();
                         }
                     } else {
                         text.textContent = 'Move hand into the target area';
@@ -153,214 +134,9 @@ function startPolling() {
 
 document.addEventListener('DOMContentLoaded', startPolling);
 
-// Click to place target region
-function placeTarget() {
-    placing = true;
-    const video = document.getElementById('cam');
-    const box = document.getElementById('video-box');
-    
-    box.style.cursor = 'crosshair';
-    
-    const onClick = (e) => {
-        if (!placing) return;
-        
-        const rect = video.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / rect.width;
-        const y = (e.clientY - rect.top) / rect.height;
-        const w = 0.3; // default width
-        const h = 0.4; // default height
-        
-        fetch('{{ url_for("set_hand_target") }}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ x: x - w/2, y: y - h/2, w, h })
-        }).then(() => {
-            placing = false;
-            box.removeEventListener('click', onClick);
-            box.style.cursor = 'default';
-            alert('Target region set! Move your hand into the blue box to trigger.');
-        });
-    };
-    
-    box.addEventListener('click', onClick);
-}
-
-// WebRTC Camera Access
-let webcamStream = null;
-let isWebcamActive = false;
-let handDetector = null;
-let isDetecting = false;
-
-async function initWebcam() {
-    try {
-        const webcam = document.getElementById('webcam');
-        const img = document.getElementById('cam');
-        const cloudNotice = document.getElementById('cloud-notice');
-        const gestureText = document.getElementById('gesture-text');
-        
-        // Request camera access
-        webcamStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                width: 640, 
-                height: 480,
-                facingMode: 'user'
-            } 
-        });
-        
-        // Set video source
-        webcam.srcObject = webcamStream;
-        
-        // Show webcam, hide fallback
-        webcam.style.display = 'block';
-        img.style.display = 'none';
-        
-        // Update UI
-        gestureText.textContent = 'Camera connected! Show your hand to trigger';
-        cloudNotice.style.display = 'none';
-        isWebcamActive = true;
-        
-        // Initialize hand detection
-        await initHandDetection();
-        
-        console.log('WebRTC camera initialized successfully');
-        
-    } catch (error) {
-        console.log('WebRTC camera failed, using fallback:', error);
-        fallbackToServerCamera();
-    }
-}
-
-function fallbackToServerCamera() {
-    const img = document.getElementById('cam');
-    const cloudNotice = document.getElementById('cloud-notice');
-    const gestureText = document.getElementById('gesture-text');
-    
-    // Check if the image source contains the demo frame
-    img.onload = function() {
-        setTimeout(() => {
-            if (gestureText.textContent.includes('Waiting for hand detection')) {
-                cloudNotice.style.display = 'block';
-                gestureText.textContent = 'Camera not available - Cloud platform detected';
-            }
-        }, 2000);
-    };
-}
-
-// Initialize hand detection
-async function initHandDetection() {
-    try {
-        const model = handPoseDetection.SupportedModels.MediaPipeHands;
-        const detectorConfig = {
-            runtime: 'tfjs',
-            modelType: 'full'
-        };
-        
-        handDetector = await handPoseDetection.createDetector(model, detectorConfig);
-        console.log('Hand detection model loaded');
-        
-        // Start detection loop
-        startHandDetection();
-        
-    } catch (error) {
-        console.error('Failed to initialize hand detection:', error);
-    }
-}
-
-// Start hand detection loop
-function startHandDetection() {
-    if (!isWebcamActive || !handDetector) return;
-    
-    const webcam = document.getElementById('webcam');
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    canvas.width = webcam.videoWidth || 640;
-    canvas.height = webcam.videoHeight || 480;
-    
-    async function detectHands() {
-        if (!isDetecting) return;
-        
-        try {
-            // Draw video frame to canvas
-            ctx.drawImage(webcam, 0, 0, canvas.width, canvas.height);
-            
-            // Detect hands
-            const hands = await handDetector.estimateHands(canvas);
-            
-            if (hands.length > 0) {
-                const hand = hands[0];
-                const keypoints = hand.keypoints;
-                
-                // Check if hand is in target area
-                const targetArea = { x: 0.35, y: 0.30, w: 0.30, h: 0.40 };
-                const handCenter = keypoints[9]; // Middle finger base
-                
-                if (handCenter) {
-                    const x = handCenter.x / canvas.width;
-                    const y = handCenter.y / canvas.height;
-                    
-                    const isInTarget = x >= targetArea.x && x <= targetArea.x + targetArea.w &&
-                                     y >= targetArea.y && y <= targetArea.y + targetArea.h;
-                    
-                    if (isInTarget) {
-                        // Hand detected in target area
-                        document.getElementById('gesture-text').textContent = 'Hand detected! Hold steady...';
-                        document.getElementById('gesture-indicator').style.backgroundColor = '#28a745';
-                        
-                        // Trigger countdown
-                        if (!countdown_active) {
-                            startCountdown();
-                        }
-                    } else {
-                        document.getElementById('gesture-text').textContent = 'Move hand to target area';
-                        document.getElementById('gesture-indicator').style.backgroundColor = '#ffc107';
-                    }
-                }
-            } else {
-                document.getElementById('gesture-text').textContent = 'Show your hand to trigger';
-                document.getElementById('gesture-indicator').style.backgroundColor = '#6c757d';
-            }
-            
-        } catch (error) {
-            console.error('Hand detection error:', error);
-        }
-        
-        // Continue detection
-        requestAnimationFrame(detectHands);
-    }
-    
-    // Start detection
-    isDetecting = true;
-    detectHands();
-}
-
-// Check for launch triggers
-function checkLaunchTrigger() {
-    fetch('{{ url_for("check_launch") }}')
-        .then(response => response.json())
-        .then(data => {
-            if (data.launch) {
-                // Launch triggered, redirect to launch page
-                window.location.href = '{{ url_for("launch") }}';
-            }
-        })
-        .catch(error => console.error('Error checking launch:', error));
-}
-
-// Check for launch every 100ms
-setInterval(checkLaunchTrigger, 100);
-
-// Initialize camera
-initWebcam();
-
 // Cleanup on page unload
 window.addEventListener('beforeunload', function() {
     if (pollInterval) clearInterval(pollInterval);
-    if (countdownInterval) clearInterval(countdownInterval);
-    if (webcamStream) {
-        webcamStream.getTracks().forEach(track => track.stop());
-    }
-    isDetecting = false;
     fetch('{{ url_for("cleanup") }}');
 });
 </script>
