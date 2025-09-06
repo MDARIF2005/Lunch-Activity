@@ -434,12 +434,12 @@ def store_selection():
 def launch():
     """Execute the launch based on stored data"""
     global launch_data
-    
+
     if launch_data["type"] == "website":
-        webbrowser.open(launch_data["value"])
         return render_template('display.html', 
                              message=f"Website launched: {launch_data['value']}",
-                             type="website")
+                             type="website",
+                             website_url=launch_data["value"])
     elif launch_data["type"] == "image":
         return render_template('display.html', 
                              image_path=launch_data["value"],
@@ -448,7 +448,7 @@ def launch():
         return render_template('display.html', 
                              file_path=launch_data["value"],
                              type="file")
-    
+
     return "No launch data available", 400
 
 @app.route('/hand')

@@ -142,6 +142,12 @@
 document.addEventListener('DOMContentLoaded', function() {
     const now = new Date();
     document.getElementById('launch-timestamp').textContent = now.toLocaleTimeString();
+    {% if type == 'website' and website_url %}
+    // Open the website in a new tab after confirmation page loads
+    setTimeout(function() {
+        window.open("{{ website_url }}", '_blank');
+    }, 500);
+    {% endif %}
 });
 </script>
 {% endblock %}
