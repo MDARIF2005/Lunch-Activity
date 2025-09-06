@@ -194,3 +194,7 @@ For issues or questions:
 2. Review the console for error messages
 3. Ensure all dependencies are properly installed
 4. Verify system requirements are met
+
+## Live Demo
+
+[Launch Activity App on Render](https://lunch-activity.onrender.com)
