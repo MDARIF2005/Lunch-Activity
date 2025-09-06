@@ -7,10 +7,10 @@
     <div class="row g-0">
         <div class="col-12">
             <div class="position-relative" style="height: 100vh; background: black; overflow: hidden;">
-                <!-- Fullscreen video feed -->
+                <!-- Fullscreen webcam feed and canvas overlay -->
                 <div class="position-absolute top-0 start-0 w-100 h-100">
-                    <img id="cam" src="{{ url_for('video_feed') }}" alt="Camera Feed" 
-                         class="w-100 h-100" style="object-fit: cover;">
+                    <video id="webcam" autoplay playsinline class="w-100 h-100" style="object-fit: cover; position: absolute;"></video>
+                    <canvas id="overlay" class="w-100 h-100" style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
                 </div>
                 
                 <!-- Overlay controls -->
@@ -48,15 +48,65 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 <script>
-let pollInterval;
+let countdownStart = null;
+let countdownDuration = 3; // seconds
+let handInTarget = false;
+let launchTriggered = false;
+
+const webcam = document.getElementById('webcam');
+const overlay = document.getElementById('overlay');
+const ctx = overlay.getContext('2d');
+const indicator = document.getElementById('gesture-indicator');
+const text = document.getElementById('gesture-text');
+
+// Load hand sketch image
+const handSketch = new window.Image();
+handSketch.src = '/static/images/hand_sketch.png';
+handSketch.onload = function() {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = handSketch.width;
+    tempCanvas.height = handSketch.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(handSketch, 0, 0);
+    const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+    for (let i = 0; i < imgData.data.length; i += 4) {
+        if (imgData.data[i] > 220 && imgData.data[i+1] > 220 && imgData.data[i+2] > 220) {
+            imgData.data[i+3] = 0;
+        }
+    }
+    tempCtx.putImageData(imgData, 0, 0);
+    handSketch.src = tempCanvas.toDataURL();
+};
+
+function drawHandSketch() {
+    if (!webcam.videoWidth || !webcam.videoHeight) return;
+    // Draw sketch at center, 40% of video width, full opacity (outline only)
+    const size = Math.floor(Math.min(webcam.videoWidth, webcam.videoHeight) * 0.4);
+    const x = (webcam.videoWidth - size) / 2;
+    const y = (webcam.videoHeight - size) / 2;
+    // Draw a subtle target circle
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.beginPath();
+    ctx.arc(webcam.videoWidth/2, webcam.videoHeight/2, size/2, 0, 2 * Math.PI);
+    ctx.fillStyle = '#000';
+    ctx.fill();
+    ctx.restore();
+    // Draw the hand sketch outline
+    ctx.save();
+    ctx.globalAlpha = 1.0;
+    ctx.drawImage(handSketch, x, y, size, size);
+    ctx.restore();
+}
 
 function triggerLaunch() {
     fetch('{{ url_for("hand_trigger") }}', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
+        headers: { 'Content-Type': 'application/json' },
     })
     .then(response => {
         if (response.ok) {
@@ -77,67 +127,93 @@ function showCountdown(seconds) {
     countdownDisplay.style.display = 'block';
     const count = Math.ceil(seconds);
     countdownText.textContent = count;
-    // Add visual feedback for countdown
     if (count === 3) {
-        countdownText.style.color = '#ff6b6b'; // Red
+        countdownText.style.color = '#ff6b6b';
     } else if (count === 2) {
-        countdownText.style.color = '#ffa726'; // Orange
+        countdownText.style.color = '#ffa726';
     } else if (count === 1) {
-        countdownText.style.color = '#66bb6a'; // Green
+        countdownText.style.color = '#66bb6a';
     }
-    // Do NOT trigger launch here; only show countdown
 }
-
 function hideCountdown() {
-    const countdownDisplay = document.getElementById('countdown-display');
-    countdownDisplay.style.display = 'none';
+    document.getElementById('countdown-display').style.display = 'none';
 }
 
-// Poll hand detection status and auto-trigger
-function startPolling() {
-    pollInterval = setInterval(() => {
-        fetch('{{ url_for("hand_status") }}')
-            .then(r => r.json())
-            .then(data => {
-                const indicator = document.getElementById('gesture-indicator');
-                const text = document.getElementById('gesture-text');
-                
-                if (data.detected) {
-                    indicator.className = 'status-indicator status-active';
-                    
-                    if (data.inside) {
-                        if (data.countdown_remaining > 0) {
-                            text.textContent = `Hand detected! Hold steady...`;
-                            showCountdown(data.countdown_remaining);
-                        } else if (data.launch) {
-                            text.textContent = 'Launching activity...';
-                            hideCountdown();
-                            clearInterval(pollInterval);
-                            setTimeout(() => triggerLaunch(), 100); // Launch only if backend says so
-                        } else {
-                            text.textContent = 'Move hand into the target area';
-                            hideCountdown();
-                        }
-                    } else {
-                        text.textContent = 'Move hand into the target area';
-                        hideCountdown();
-                    }
-                } else {
-                    indicator.className = 'status-indicator status-inactive';
-                    text.textContent = 'Waiting for hand...';
-                    hideCountdown();
+function isHandInTarget(landmarks) {
+    // Target: center 40% of the video
+    if (!landmarks) return false;
+    let xs = landmarks.map(pt => pt.x);
+    let ys = landmarks.map(pt => pt.y);
+    let cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+    let cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+    // Center box: 0.3 < x < 0.7, 0.3 < y < 0.7
+    return (cx > 0.3 && cx < 0.7 && cy > 0.3 && cy < 0.7);
+}
+
+function onResults(results) {
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+    drawHandSketch();
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        indicator.className = 'status-indicator status-active';
+        text.textContent = 'Hand detected! Hold steady...';
+        for (const landmarks of results.multiHandLandmarks) {
+            // Do not draw connectors or dots, only use for detection
+            if (isHandInTarget(landmarks)) {
+                if (!handInTarget) {
+                    handInTarget = true;
+                    countdownStart = Date.now();
                 }
-            })
-            .catch(() => {});
-    }, 100); // Faster polling for smoother countdown
+                let elapsed = (Date.now() - countdownStart) / 1000;
+                showCountdown(countdownDuration - elapsed);
+                if (!launchTriggered && elapsed >= countdownDuration) {
+                    launchTriggered = true;
+                    hideCountdown();
+                    triggerLaunch();
+                }
+                return;
+            }
+        }
+        // Hand detected but not in target
+        handInTarget = false;
+        countdownStart = null;
+        hideCountdown();
+        text.textContent = 'Move hand into the target area';
+    } else {
+        indicator.className = 'status-indicator status-inactive';
+        text.textContent = 'Waiting for hand...';
+        handInTarget = false;
+        countdownStart = null;
+        hideCountdown();
+    }
 }
 
-document.addEventListener('DOMContentLoaded', startPolling);
+function resizeCanvas() {
+    overlay.width = webcam.videoWidth;
+    overlay.height = webcam.videoHeight;
+}
 
-// Cleanup on page unload
-window.addEventListener('beforeunload', function() {
-    if (pollInterval) clearInterval(pollInterval);
-    fetch('{{ url_for("cleanup") }}');
+async function startHandDetection() {
+    const hands = new window.Hands({locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+    hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.7,
+        minTrackingConfidence: 0.7
+    });
+    hands.onResults(onResults);
+    const camera = new window.Camera(webcam, {
+        onFrame: async () => {
+            resizeCanvas();
+            await hands.send({image: webcam});
+        },
+        width: 640,
+        height: 480
+    });
+    camera.start();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    startHandDetection();
 });
 </script>
 {% endblock %}
