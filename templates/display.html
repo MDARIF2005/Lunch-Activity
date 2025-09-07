@@ -31,10 +31,96 @@
 
 {% block content %}
 {% if type == "image" %}
-    <!-- Full screen image display (no chrome) -->
+    <!-- Full screen image/video display with celebration effect -->
     <div class="fullscreen-image-wrapper">
-        <img src="{{ image_path }}" alt="Launched Image">
+        {% if image_path.endswith('.mp4') or image_path.endswith('.webm') or image_path.endswith('.ogg') %}
+            <video src="{{ image_path }}" controls autoplay loop muted style="max-width:100vw; max-height:100vh;"></video>
+        {% else %}
+            <img src="{{ image_path }}" alt="Launched Image" style="max-width:100vw; max-height:100vh;">
+        {% endif %}
+        <canvas id="confetti-canvas" style="position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:9999;"></canvas>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+    window.onload = function() {
+        confetti({
+            particleCount: 200,
+            spread: 90,
+            origin: { y: 0.6 }
+        });
+    };
+    </script>
+{% elif type == "file" %}
+    <div class="fullscreen-image-wrapper" style="background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;">
+        
+        {% set office_exts = ['.ppt', '.pptx', '.doc', '.docx', '.xls', '.xlsx', '.odt', '.ods', '.odp'] %}
+        {% set is_office = false %}
+        {% for ext in office_exts %}
+            {% if file_path.lower().endswith(ext) %}{% set is_office = true %}{% endif %}
+        {% endfor %}
+        {% if image_exts|select('in', file_path.lower())|list %}
+            <img src="{{ file_path.replace('\\','/') }}" alt="Image" style="max-width:90vw; max-height:80vh; margin-bottom:20px;" />
+        {% elif video_exts|select('in', file_path.lower())|list %}
+            <video src="{{ file_path.replace('\\','/') }}" controls autoplay loop muted style="max-width:90vw; max-height:80vh; margin-bottom:20px;"></video>
+        {% elif file_path.endswith('.pdf') %}
+            <embed src="{{ file_path.replace('\\','/') }}" type="application/pdf" width="90%" height="600px" style="border:1px solid #ccc; margin-bottom:20px;" />
+        {% elif file_path.endswith('.txt') or file_path.endswith('.csv') %}
+            <iframe src="{{ file_path.replace('\\','/') }}" width="90%" height="400px" style="border:1px solid #ccc; margin-bottom:20px;"></iframe>
+        {% elif is_office %}
+            <div style="width:90vw;max-width:1200px;height:70vh;margin:0 auto;position:relative;background:#222;border-radius:12px;box-shadow:0 2px 16px #0003;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                <iframe id="office-viewer" src="https://docs.google.com/gview?url={{ file_url }}&embedded=true" width="100%" height="100%" style="min-height:500px;border:none;background:#222;"></iframe>
+                <div id="office-fallback" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#222;align-items:center;justify-content:center;z-index:10;flex-direction:column;">
+                    <div style="color:#fff;font-size:1.5rem;margin-bottom:1rem;">No preview available for this file.</div>
+                </div>
+            </div>
+            <script>
+            // Fallback if Google Docs Viewer fails to load
+            document.addEventListener('DOMContentLoaded', function() {
+                var iframe = document.getElementById('office-viewer');
+                var fallback = document.getElementById('office-fallback');
+                if (iframe) {
+                    setTimeout(function() {
+                        try {
+                            var noPreview = iframe.contentDocument && iframe.contentDocument.body && iframe.contentDocument.body.innerText.includes('No preview available');
+                            if (noPreview) {
+                                fallback.style.display = 'flex';
+                                iframe.style.display = 'none';
+                            }
+                        } catch (e) {
+                            // Cross-origin, show fallback if iframe is blank after 3s
+                            if (iframe && (!iframe.contentWindow || !iframe.contentWindow.length)) {
+                                fallback.style.display = 'flex';
+                                iframe.style.display = 'none';
+                            }
+                        }
+                    }, 3000);
+                }
+            });
+            </script>
+        {% elif file_path.startswith('https://docs.google.com/presentation') %}
+            <!-- Google Slides embed -->
+            <iframe src="{{ file_path.replace('/edit', '/embed') }}" frameborder="0" width="90%" height="600px" allowfullscreen style="background:#fff;"></iframe>
+        {% else %}
+            <div style="color:#fff;font-size:1.5rem;margin-bottom:1rem;">Preview not available. Please download the file to view it.</div>
+        {% endif %}
+        <a href="{{ file_path.replace('\\','/') }}" class="btn btn-success btn-lg" download>
+            <i class="fas fa-download me-2"></i>Download File
+        </a>
+        <a href="{{ file_path.replace('\\','/') }}" class="btn btn-primary btn-lg" target="_blank" style="margin-top:10px;">
+            <i class="fas fa-external-link-alt me-2"></i>Open File
+        </a>
+        <canvas id="confetti-canvas" style="position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:9999;"></canvas>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+    window.onload = function() {
+        confetti({
+            particleCount: 200,
+            spread: 90,
+            origin: { y: 0.6 }
+        });
+    };
+    </script>
 {% else %}
     <!-- Other content types with normal layout -->
     <div class="row justify-content-center">

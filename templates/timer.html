@@ -5,6 +5,8 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
+        {% if not launch_time %}
+        <!-- Scheduling Form -->
         <div class="card">
             <div class="card-header bg-primary text-white text-center">
                 <h2 class="mb-0">
@@ -31,6 +33,21 @@
                 </form>
             </div>
         </div>
+        {% else %}
+        <!-- Countdown Display -->
+        <div class="card">
+            <div class="card-header bg-success text-white text-center">
+                <h2 class="mb-0">
+                    <i class="fas fa-hourglass-half me-2"></i>Countdown to Launch
+                </h2>
+            </div>
+            <div class="card-body p-4 text-center">
+                <div class="display-3 mb-3" id="timer-display">--:--:--</div>
+                <div class="mb-2 text-muted">Scheduled for: <span id="scheduled-time">{{ launch_time }}</span></div>
+                <div class="alert alert-info">Keep this page open. Launch will execute automatically.</div>
+            </div>
+        </div>
+        {% endif %}
         
         <!-- Quick Schedule Options -->
         <div class="card mt-4">
@@ -139,52 +156,59 @@
 
 {% block extra_js %}
 <script>
-function setQuickTime(minutes) {
-    const now = new Date();
-    const launchTime = new Date(now.getTime() + (minutes * 60000));
-    
-    // Format for datetime-local input
-    const year = launchTime.getFullYear();
-    const month = String(launchTime.getMonth() + 1).padStart(2, '0');
-    const day = String(launchTime.getDate()).padStart(2, '0');
-    const hours = String(launchTime.getHours()).padStart(2, '0');
-    const minutes = String(launchTime.getMinutes()).padStart(2, '0');
-    
-    const datetimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
-    document.getElementById('launch_time').value = datetimeString;
+{% if launch_time %}
+let timerInterval;
+let countdownInterval;
+let launched = false;
+let launchTime = new Date("{{ launch_time }}").getTime();
+
+function startTimer(targetTime) {
+    timerInterval = setInterval(function() {
+        let now = new Date().getTime();
+        let distance = targetTime - now;
+        if (distance <= 0 && !launched) {
+            clearInterval(timerInterval);
+            showCountdownAndLaunch();
+        } else if (!launched) {
+            updateTimerDisplay(distance);
+        }
+    }, 500);
 }
 
-function updateTime() {
-    const now = new Date();
-    
-    // Update local time
-    const timeString = now.toLocaleTimeString();
-    document.getElementById('local-time-display').textContent = timeString;
-    
-    // Update date
-    const dateString = now.toLocaleDateString();
-    document.getElementById('date-display').textContent = dateString;
-    
-    // Update timezone
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    document.getElementById('timezone-display').textContent = timezone;
+function updateTimerDisplay(distance) {
+    let seconds = Math.floor((distance / 1000) % 60);
+    let minutes = Math.floor((distance / (1000 * 60)) % 60);
+    let hours = Math.floor((distance / (1000 * 60 * 60)) % 24);
+    let days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    let display = '';
+    if (days > 0) display += days + 'd ';
+    if (hours > 0 || days > 0) display += hours + 'h ';
+    if (minutes > 0 || hours > 0 || days > 0) display += minutes + 'm ';
+    display += seconds + 's';
+    document.getElementById('timer-display').textContent = display;
 }
 
-// Update time every second
-setInterval(updateTime, 1000);
-updateTime(); // Initial call
+function showCountdownAndLaunch() {
+    launched = true;
+    let countdown = 3;
+    document.getElementById('timer-display').textContent = countdown;
+    countdownInterval = setInterval(function() {
+        countdown--;
+        if (countdown > 0) {
+            document.getElementById('timer-display').textContent = countdown;
+        } else {
+            clearInterval(countdownInterval);
+            document.getElementById('timer-display').textContent = 'Launching...';
+            setTimeout(function() {
+                window.location.href = '{{ url_for("launch") }}';
+            }, 500);
+        }
+    }, 1000);
+}
 
-// Set minimum time to current time
 document.addEventListener('DOMContentLoaded', function() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    
-    const minDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-    document.getElementById('launch_time').min = minDateTime;
+    startTimer(launchTime);
 });
+{% endif %}
 </script>
 {% endblock %}

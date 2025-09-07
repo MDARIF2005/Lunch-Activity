@@ -134,75 +134,97 @@
 <script>
 let isListening = false;
 let commandHistory = [];
+let recognition;
 
 function startListening() {
     if (isListening) return;
-    
-    isListening = true;
-    const button = document.getElementById('listen-btn');
-    const statusText = document.getElementById('status-text');
-    const instructionText = document.getElementById('instruction-text');
-    const microphoneIcon = document.getElementById('microphone-icon');
-    const audioStatus = document.getElementById('audio-status');
-    const recognitionStatus = document.getElementById('recognition-status');
-    
-    // Update UI
-    button.innerHTML = '<span class="loading-spinner me-2"></span>Listening...';
-    button.disabled = true;
-    statusText.textContent = 'Listening...';
-    instructionText.textContent = 'Speak now!';
-    microphoneIcon.innerHTML = '<i class="fas fa-microphone-slash fa-5x text-warning"></i>';
-    
-    // Update status indicators
-    audioStatus.innerHTML = '<span class="status-indicator status-active"></span><span>Microphone: Active</span>';
-    recognitionStatus.innerHTML = '<span class="status-indicator status-active"></span><span>Speech Recognition: Processing</span>';
-    
-    // Send request to listen
-    fetch('{{ url_for("listen") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
+    // Ask for microphone permission first
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+        // Permission granted, proceed
+        isListening = true;
+        const button = document.getElementById('listen-btn');
+        const statusText = document.getElementById('status-text');
+        const instructionText = document.getElementById('instruction-text');
+        const microphoneIcon = document.getElementById('microphone-icon');
+        const audioStatus = document.getElementById('audio-status');
+        const recognitionStatus = document.getElementById('recognition-status');
+
+        // Update UI
+        button.innerHTML = '<span class="loading-spinner me-2"></span>Listening...';
+        button.disabled = true;
+        statusText.textContent = 'Listening...';
+        instructionText.textContent = 'Speak now!';
+        microphoneIcon.innerHTML = '<i class="fas fa-microphone-slash fa-5x text-warning"></i>';
+        audioStatus.innerHTML = '<span class="status-indicator status-active"></span><span>Microphone: Active</span>';
+        recognitionStatus.innerHTML = '<span class="status-indicator status-active"></span><span>Speech Recognition: Processing</span>';
+
+        // Use browser Web Speech API
+        window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!window.SpeechRecognition) {
+            statusText.textContent = 'Not Supported';
+            instructionText.textContent = 'Your browser does not support speech recognition.';
+            microphoneIcon.innerHTML = '<i class="fas fa-exclamation-triangle fa-5x text-danger"></i>';
+            button.innerHTML = '<i class="fas fa-microphone me-2"></i>Start Listening';
+            button.disabled = false;
+            return;
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Command recognized
-            statusText.textContent = 'Command Recognized!';
-            instructionText.textContent = `Heard: "${data.command}"`;
-            microphoneIcon.innerHTML = '<i class="fas fa-check-circle fa-5x text-success"></i>';
-            // Update transcript box
-            document.getElementById('transcript-content').textContent = data.command;
-            
-            // Add to history
-            addToHistory(data.command, true);
-            
-            // Trigger launch after a short delay
-            setTimeout(() => {
-                window.location.href = '{{ url_for("launch") }}';
-            }, 1500);
-        } else {
-            // Command not recognized
-            statusText.textContent = 'Command Not Recognized';
-            instructionText.textContent = data.message || 'Please try again';
-            microphoneIcon.innerHTML = '<i class="fas fa-times-circle fa-5x text-danger"></i>';
-            document.getElementById('transcript-content').textContent = data.message || 'Command not recognized';
-            
-            addToHistory(data.message || 'Command not recognized', false);
-            
-            // Reset after delay
+        recognition = new window.SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            document.getElementById('transcript-content').textContent = transcript;
+            let triggerWords = ['launch', 'open', 'start', 'go'];
+            let found = triggerWords.some(word => transcript.toLowerCase().includes(word));
+            if (found) {
+                statusText.textContent = 'Command Recognized!';
+                instructionText.textContent = `Heard: "${transcript}"`;
+                microphoneIcon.innerHTML = '<i class="fas fa-check-circle fa-5x text-success"></i>';
+                addToHistory(transcript, true);
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("launch") }}';
+                }, 1500);
+            } else {
+                statusText.textContent = 'Command Not Recognized';
+                instructionText.textContent = 'Please try again';
+                microphoneIcon.innerHTML = '<i class="fas fa-times-circle fa-5x text-danger"></i>';
+                addToHistory(transcript, false);
+                setTimeout(resetListening, 2000);
+            }
+            isListening = false;
+            button.innerHTML = '<i class="fas fa-microphone me-2"></i>Start Listening';
+            button.disabled = false;
+        };
+        recognition.onerror = function(event) {
+            statusText.textContent = 'Error';
+            instructionText.textContent = 'Speech recognition error. Please try again.';
+            microphoneIcon.innerHTML = '<i class="fas fa-exclamation-triangle fa-5x text-danger"></i>';
+            addToHistory('Error: ' + event.error, false);
             setTimeout(resetListening, 2000);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        statusText.textContent = 'Error';
-        instructionText.textContent = 'Failed to process audio. Please try again.';
+            isListening = false;
+            button.innerHTML = '<i class="fas fa-microphone me-2"></i>Start Listening';
+            button.disabled = false;
+        };
+        recognition.onend = function() {
+            if (isListening) {
+                // If ended without result, reset
+                resetListening();
+            }
+        };
+        recognition.start();
+    }).catch(function(err) {
+        // Permission denied or error
+        const button = document.getElementById('listen-btn');
+        const statusText = document.getElementById('status-text');
+        const instructionText = document.getElementById('instruction-text');
+        const microphoneIcon = document.getElementById('microphone-icon');
+        statusText.textContent = 'Microphone Permission Denied';
+        instructionText.textContent = 'Please allow microphone access in your browser settings.';
         microphoneIcon.innerHTML = '<i class="fas fa-exclamation-triangle fa-5x text-danger"></i>';
-        document.getElementById('transcript-content').textContent = 'Error processing audio';
-        
-        addToHistory('Error processing audio', false);
-        setTimeout(resetListening, 2000);
+        button.innerHTML = '<i class="fas fa-microphone me-2"></i>Start Listening';
+        button.disabled = false;
+        isListening = false;
     });
 }
 
@@ -214,17 +236,14 @@ function resetListening() {
     const microphoneIcon = document.getElementById('microphone-icon');
     const audioStatus = document.getElementById('audio-status');
     const recognitionStatus = document.getElementById('recognition-status');
-    
-    // Reset UI
     button.innerHTML = '<i class="fas fa-microphone me-2"></i>Start Listening';
     button.disabled = false;
     statusText.textContent = 'Ready to Listen';
     instructionText.textContent = 'Click the button below or say a command to trigger the launch';
     microphoneIcon.innerHTML = '<i class="fas fa-microphone fa-5x text-primary"></i>';
-    
-    // Reset status indicators
     audioStatus.innerHTML = '<span class="status-indicator status-inactive"></span><span>Microphone: Ready</span>';
     recognitionStatus.innerHTML = '<span class="status-indicator status-inactive"></span><span>Speech Recognition: Ready</span>';
+    if (recognition) recognition.stop();
 }
 
 function addToHistory(command, success) {
@@ -233,13 +252,9 @@ function addToHistory(command, success) {
         success: success,
         timestamp: new Date().toLocaleTimeString()
     });
-    
-    // Keep only last 5 commands
     if (commandHistory.length > 5) {
         commandHistory = commandHistory.slice(0, 5);
     }
-    
-    // Update history display
     const historyDiv = document.getElementById('command-history');
     if (commandHistory.length === 0) {
         historyDiv.innerHTML = '<p class="text-muted text-center">No commands detected yet</p>';

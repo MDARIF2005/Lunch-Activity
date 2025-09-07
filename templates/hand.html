@@ -213,7 +213,19 @@ async function startHandDetection() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    startHandDetection();
+    // Ask for webcam permission first
+    navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
+        // Permission granted, start hand detection
+        startHandDetection();
+    }).catch(function(err) {
+        // Permission denied or error
+        const gestureText = document.getElementById('gesture-text');
+        gestureText.textContent = 'Webcam permission denied. Please allow camera access in your browser settings.';
+        gestureText.style.color = '#ff6b6b';
+        document.getElementById('camera-notice').classList.add('alert-danger');
+        document.getElementById('camera-notice').classList.remove('alert-info');
+        document.getElementById('camera-notice').innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i><strong>Camera Access Denied</strong><br>Please allow camera access in your browser settings to use hand gesture detection.';
+    });
 });
 </script>
 {% endblock %}

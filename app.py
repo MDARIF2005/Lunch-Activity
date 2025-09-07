@@ -18,10 +18,12 @@ import numpy as np
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['VIDEO_FOLDER'] = 'static/video'
+app.config['MAX_CONTENT_LENGTH'] = 64 * 1024 * 1024  # 64MB max file size
 
-# Ensure upload directory exists
+# Ensure upload directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['VIDEO_FOLDER'], exist_ok=True)
 
 # Global variables to store launch data and camera
 launch_data = {
@@ -40,7 +42,7 @@ hand_target_region = {"x": 0.35, "y": 0.30, "w": 0.30, "h": 0.40}
 hand_detected_at = 0.0
 
 # Allowed file extensions
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'mp4', 'webm', 'ogg'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -387,11 +389,17 @@ def store_selection():
             file = request.files['image_file']
             if file and allowed_file(file.filename):
                 filename = secure_filename(file.filename)
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
-                value = filepath
+                ext = filename.rsplit('.', 1)[1].lower()
+                if ext in ['mp4', 'webm', 'ogg']:
+                    save_path = os.path.join(app.config['VIDEO_FOLDER'], filename)
+                    file.save(save_path)
+                    value = f'static/video/{filename}'
+                else:
+                    save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(save_path)
+                    value = f'static/uploads/{filename}'
             else:
-                return "Invalid file type", 400
+                value = request.form.get('image_path')
         else:
             value = request.form.get('image_path')
     else:  # file
@@ -579,28 +587,16 @@ def timer_trigger():
 def schedule_launch():
     """Schedule a launch for a specific time"""
     launch_time = request.form.get('launch_time')
-    
     try:
         # Parse the datetime
         launch_datetime = datetime.strptime(launch_time, '%Y-%m-%dT%H:%M')
         current_time = datetime.now()
-        
         if launch_datetime <= current_time:
-            return "Launch time must be in the future", 400
-        
-        # Calculate delay in seconds
-        delay = (launch_datetime - current_time).total_seconds()
-        
-        # Schedule the launch
-        timer = threading.Timer(delay, lambda: webbrowser.open(launch_data["value"]) if launch_data["type"] == "website" else None)
-        timer.start()
-        
-        return render_template('display.html', 
-                             message=f"Launch scheduled for {launch_time}",
-                             type="timer")
-    
+            return render_template('timer.html', error="Please select a future time.")
+        # Pass the launch_time as ISO string to the template for countdown
+        return render_template('timer.html', launch_time=launch_datetime.isoformat())
     except ValueError:
-        return "Invalid datetime format", 400
+        return render_template('timer.html', error="Invalid datetime format.")
 
 @app.route('/qr')
 def qr_trigger():
