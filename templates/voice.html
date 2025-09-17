@@ -37,8 +37,15 @@
 </style>
 {% endblock %}
 
+{% block extra_css %}
+<script>
+    // Ensure the class is set before DOMContentLoaded for all devices
+    document.addEventListener('DOMContentLoaded', function() {
+        document.body.classList.add('require-permission');
+    });
+</script>
+{% endblock %}
 {% block content %}
-<script>document.body.classList.add('require-permission');</script>
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card">
