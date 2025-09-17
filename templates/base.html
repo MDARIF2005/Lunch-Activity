@@ -139,10 +139,77 @@
     </nav>
 
     <div class="container mt-4">
-        {% block content %}{% endblock %}
+        {% block content %}
+<!-- Universal Permission Modal (shown only on hand/voice pages) -->
+<div id="permission-modal" tabindex="-1" aria-modal="true" role="dialog" aria-labelledby="permission-modal-title" aria-describedby="permission-modal-desc" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;flex-direction:column;">
+    <div style="background:#fff;padding:2rem 2.5rem;border-radius:16px;max-width:400px;text-align:center;box-shadow:0 4px 32px #0005;outline:none;">
+        <h4 id="permission-modal-title" style="margin-bottom:1rem;">Enable Camera & Microphone</h4>
+        <p id="permission-modal-desc" style="color:#333;margin-bottom:1.5rem;">To use all features, please allow access to your camera and microphone.<br>This is required for hand gesture and voice commands.</p>
+        <button id="request-permission-btn" class="btn btn-primary btn-lg" style="margin-bottom:1rem;">
+            <i class="fas fa-unlock me-2"></i>Enable Camera & Mic
+        </button>
+        <div id="permission-error" style="color:#c00;font-size:1rem;display:none;margin-top:0.5rem;"></div>
+    </div>
+</div>
+        {% endblock %}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    {% block extra_js %}{% endblock %}
+    {% block extra_js %}
+<script>
+// Only show modal on hand/voice pages (by URL or body class)
+function shouldShowPermissionModal() {
+    // Add 'require-permission' class to <body> in hand.html/voice.html for best control
+    return document.body.classList.contains('require-permission');
+}
+function showPermissionModal() {
+    const modal = document.getElementById('permission-modal');
+    modal.style.display = 'flex';
+    modal.focus();
+}
+function hidePermissionModal() {
+    document.getElementById('permission-modal').style.display = 'none';
+}
+function trapFocus(modal) {
+    // Trap focus inside modal for accessibility
+    const focusable = modal.querySelectorAll('button, [tabindex]:not([tabindex="-1"])');
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    modal.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab') {
+            if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+            else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+        }
+        if (e.key === 'Escape') { hidePermissionModal(); }
+    });
+}
+document.addEventListener('DOMContentLoaded', function() {
+    if (shouldShowPermissionModal()) {
+        showPermissionModal();
+        trapFocus(document.getElementById('permission-modal'));
+        document.getElementById('request-permission-btn').onclick = function() {
+            document.getElementById('permission-error').style.display = 'none';
+            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                .then(function(stream) {
+                    hidePermissionModal();
+                    stream.getTracks().forEach(track => track.stop());
+                })
+                .catch(function(err) {
+                    let msg = 'Permission denied. Please allow camera and microphone access in your browser settings.';
+                    if (err && err.name === 'NotFoundError') {
+                        msg = 'No camera or microphone found. Please connect a device.';
+                    } else if (err && err.name === 'NotAllowedError') {
+                        msg = 'Permission denied. Please allow camera and microphone access in your browser settings.';
+                    } else if (err && err.name === 'NotReadableError') {
+                        msg = 'Device is already in use by another application.';
+                    }
+                    document.getElementById('permission-error').style.display = 'block';
+                    document.getElementById('permission-error').textContent = msg;
+                });
+        };
+    }
+});
+</script>
+    {% endblock %}
 </body>
 </html>
