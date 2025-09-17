@@ -145,10 +145,22 @@
     <div style="background:#fff;padding:2rem 2.5rem;border-radius:16px;max-width:400px;text-align:center;box-shadow:0 4px 32px #0005;outline:none;">
         <h4 id="permission-modal-title" style="margin-bottom:1rem;">Enable Camera & Microphone</h4>
         <p id="permission-modal-desc" style="color:#333;margin-bottom:1.5rem;">To use all features, please allow access to your camera and microphone.<br>This is required for hand gesture and voice commands.</p>
+        <div id="permission-loading" style="display:none;margin-bottom:1rem;">
+            <span class="loading-spinner" style="vertical-align:middle;"></span>
+            <span style="margin-left:0.5rem;">Requesting permission...</span>
+        </div>
         <button id="request-permission-btn" class="btn btn-primary btn-lg" style="margin-bottom:1rem;">
             <i class="fas fa-unlock me-2"></i>Enable Camera & Mic
         </button>
         <div id="permission-error" style="color:#c00;font-size:1rem;display:none;margin-top:0.5rem;"></div>
+        <div id="permission-help" style="color:#555;font-size:0.98rem;display:none;margin-top:0.5rem;">
+            <b>Troubleshooting:</b>
+            <ul style="text-align:left;font-size:0.97rem;margin:0.5em 0 0 1.2em;padding:0;">
+                <li>Check your browser's address bar for a camera/mic icon and allow access.</li>
+                <li>Make sure no other app is using your camera or microphone.</li>
+                <li>Try a different browser or device if the problem persists.</li>
+            </ul>
+        </div>
     </div>
 </div>
         {% endblock %}
@@ -187,26 +199,35 @@ document.addEventListener('DOMContentLoaded', function() {
     if (shouldShowPermissionModal()) {
         showPermissionModal();
         trapFocus(document.getElementById('permission-modal'));
-        document.getElementById('request-permission-btn').onclick = function() {
-            document.getElementById('permission-error').style.display = 'none';
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-                .then(function(stream) {
-                    hidePermissionModal();
-                    stream.getTracks().forEach(track => track.stop());
-                })
-                .catch(function(err) {
-                    let msg = 'Permission denied. Please allow camera and microphone access in your browser settings.';
-                    if (err && err.name === 'NotFoundError') {
-                        msg = 'No camera or microphone found. Please connect a device.';
-                    } else if (err && err.name === 'NotAllowedError') {
-                        msg = 'Permission denied. Please allow camera and microphone access in your browser settings.';
-                    } else if (err && err.name === 'NotReadableError') {
-                        msg = 'Device is already in use by another application.';
-                    }
-                    document.getElementById('permission-error').style.display = 'block';
-                    document.getElementById('permission-error').textContent = msg;
-                });
-        };
+            document.getElementById('request-permission-btn').onclick = function() {
+                document.getElementById('permission-error').style.display = 'none';
+                document.getElementById('permission-help').style.display = 'none';
+                document.getElementById('permission-loading').style.display = 'block';
+                navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+                    .then(function(stream) {
+                        document.getElementById('permission-loading').style.display = 'none';
+                        hidePermissionModal();
+                        stream.getTracks().forEach(track => track.stop());
+                    })
+                    .catch(function(err) {
+                        document.getElementById('permission-loading').style.display = 'none';
+                        let msg = 'Permission denied. Please allow camera and microphone access in your browser settings.';
+                        if (err && err.name === 'NotFoundError') {
+                            msg = 'No camera or microphone found. Please connect a device.';
+                        } else if (err && err.name === 'NotAllowedError') {
+                            msg = 'Permission denied. Please allow camera and microphone access in your browser settings.';
+                        } else if (err && err.name === 'NotReadableError') {
+                            msg = 'Device is already in use by another application.';
+                        } else if (err && err.name === 'OverconstrainedError') {
+                            msg = 'No suitable camera/mic found for the requested constraints.';
+                        } else if (err && err.name === 'SecurityError') {
+                            msg = 'Camera/mic access is blocked by browser security settings.';
+                        }
+                        document.getElementById('permission-error').style.display = 'block';
+                        document.getElementById('permission-error').textContent = msg;
+                        document.getElementById('permission-help').style.display = 'block';
+                    });
+            };
     }
 });
 </script>
