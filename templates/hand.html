@@ -49,8 +49,8 @@
                 
                 <!-- Back button -->
                 <div class="position-absolute top-0 end-0 p-3" style="z-index: 10;">
-                    <a href="{{ url_for('index') }}" class="btn btn-outline-light">
-                        <i class="fas fa-arrow-left me-2"></i>Back
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-light" aria-label="Back to Home">
+                        <i class="fas fa-arrow-left me-2" aria-hidden="true"></i><span class="visually-hidden">Back to Home</span>
                     </a>
                 </div>
             </div>

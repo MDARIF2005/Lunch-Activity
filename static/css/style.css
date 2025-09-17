@@ -1,3 +1,37 @@
+body {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    user-select: auto;
+    -webkit-user-select: auto;
+}
+.card {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+.video-container {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+* {
+    scrollbar-color: auto;
+}
+
+.some-class {
+    text-align: -webkit-match-parent;
+    text-align: match-parent;
+}
+/* Accessibility: Add visually hidden text for icon-only buttons */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
 /* Custom styles for Activity Launch App */
 
 /* Enhanced animations */
