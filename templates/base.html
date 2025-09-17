@@ -117,7 +117,7 @@
     </style>
     {% block extra_css %}{% endblock %}
 </head>
-<body{% block body_class_attr %}{% if block.super or body_class %} class="{{ body_class|default:'' }}"{% endif %}{% endblock %}>
+<body{% if body_class %} class="{{ body_class }}"{% endif %}>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
