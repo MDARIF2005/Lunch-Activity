@@ -171,8 +171,8 @@
 <script>
 // Only show modal on hand/voice pages (by URL or body class)
 function shouldShowPermissionModal() {
-    // Add 'require-permission' class to <body> in hand.html/voice.html for best control
-    return document.body.classList.contains('require-permission');
+    // DEBUG: Always show the permission modal for troubleshooting
+    return true;
 }
 function showPermissionModal() {
     const modal = document.getElementById('permission-modal');
@@ -196,9 +196,10 @@ function trapFocus(modal) {
     });
 }
 document.addEventListener('DOMContentLoaded', function() {
-    if (shouldShowPermissionModal()) {
-        showPermissionModal();
-        trapFocus(document.getElementById('permission-modal'));
+    try {
+        if (shouldShowPermissionModal()) {
+            showPermissionModal();
+            trapFocus(document.getElementById('permission-modal'));
             document.getElementById('request-permission-btn').onclick = function() {
                 document.getElementById('permission-error').style.display = 'none';
                 document.getElementById('permission-help').style.display = 'none';
@@ -228,6 +229,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('permission-help').style.display = 'block';
                     });
             };
+        }
+    } catch (e) {
+        // If modal fails to appear, show a visible error
+        const fallback = document.createElement('div');
+        fallback.style = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#fff;color:#c00;z-index:9999;display:flex;align-items:center;justify-content:center;font-size:2rem;';
+        fallback.textContent = 'Error: Permission modal failed to load. Please refresh the page.';
+        document.body.appendChild(fallback);
     }
 });
 </script>
